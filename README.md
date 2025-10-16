@@ -187,22 +187,6 @@ The following tables are **automatically created** by Sequelize:
 | GET | `/api/health` | API health check |
 | GET | `/` | API information |
 
-## Test Credentials
-
-After running the seed script, you can use these credentials:
-
-**Household User:**
-- Email: `jean.baptiste@email.com`
-- Password: `password123`
-
-**Community Health Worker:**
-- Email: `marie.claire@email.com`
-- Password: `password123`
-
-**Admin:**
-- Email: `admin@umutisafe.gov.rw`
-- Password: `admin123`
-
 ## Authentication
 
 All protected routes require a JWT token in the Authorization header:
@@ -286,9 +270,3 @@ backend/
 ├── .gitignore
 ├── package.json
 └── README.md
-```
-
-
-- Clear section separations
-- Consistent formatting throughout
-- Easy-to-read structure
