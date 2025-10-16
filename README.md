@@ -74,19 +74,12 @@ JWT_EXPIRE=7d
 CORS_ORIGIN=http://localhost:5173
 ```
 
-### 5. Run Database Migrations (Auto-creates tables)
-
-The tables will be created automatically when you start the server. Alternatively, you can run:
-```bash
-npm run db:migrate
-```
-
-### 6. Seed Database with Sample Data
+### 5. Seed Database with Sample Data
 ```bash
 npm run db:seed
 ```
 
-### 7. Start the Server
+### 6. Start the Server
 
 **Development mode (with auto-reload):**
 ```bash
