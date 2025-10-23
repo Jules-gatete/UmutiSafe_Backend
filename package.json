@@ -4,11 +4,12 @@
   "description": "UmutiSafe Backend API - Safe Medicine Disposal Platform",
   "main": "src/server.js",
   "scripts": {
-  "start": "node src/server.js",
-  "dev": "nodemon src/server.js",
-  "build": "echo \"No build step for umutisafe-backend (pure Node.js). Use 'npm start' to run in production.\"",
-  "db:migrate": "node src/scripts/migrate.js",
-  "db:seed": "node src/scripts/seed.js"
+    "prestart": "node src/scripts/migrate.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "echo \"No build step for umutisafe-backend (pure Node.js). Use 'npm start' to run in production.\"",
+    "db:migrate": "node src/scripts/migrate.js",
+    "db:seed": "node src/scripts/seed.js"
   },
   "keywords": [
     "medicine",

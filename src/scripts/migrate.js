@@ -19,8 +19,14 @@ const migrate = async () => {
     console.log('');
 
     // Sync database (creates/updates tables)
-    // Using force=true to drop and recreate all tables cleanly
-    await syncDatabase(true);
+    // Use FORCE_MIGRATE=true to drop & recreate all tables (destructive).
+    // Default behavior is non-destructive (alter/update tables).
+    const force = process.env.FORCE_MIGRATE === 'true';
+    if (force && process.env.NODE_ENV === 'production') {
+      console.warn('⚠️  FORCE_MIGRATE is true in production — this will DROP and RECREATE all tables.');
+    }
+
+    await syncDatabase(force);
 
     console.log('\n✅ Database migration completed successfully!\n');
     process.exit(0);
