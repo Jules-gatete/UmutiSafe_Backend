@@ -1,0 +1,339 @@
+{
+  "info": {
+    "name": "UmutiSafe API",
+    "description": "Complete API collection for UmutiSafe Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"user\",\n  \"phone\": \"+250 788 123 456\",\n  \"location\": \"Kigali, Gasabo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jean.baptiste@email.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Disposals",
+      "item": [
+        {
+          "name": "Create Disposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"genericName\": \"Paracetamol\",\n  \"brandName\": \"Panadol\",\n  \"dosageForm\": \"Tablet\",\n  \"packagingType\": \"Blister Pack\",\n  \"predictedCategory\": \"Analgesic\",\n  \"riskLevel\": \"LOW\",\n  \"confidence\": 0.95,\n  \"disposalGuidance\": \"Mix with coffee grounds or kitty litter\",\n  \"reason\": \"expired\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/disposals",
+              "host": ["{{baseUrl}}"],
+              "path": ["disposals"]
+            }
+          }
+        },
+        {
+          "name": "Get My Disposals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/disposals",
+              "host": ["{{baseUrl}}"],
+              "path": ["disposals"]
+            }
+          }
+        },
+        {
+          "name": "Get Disposal Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/disposals/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["disposals", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Medicines",
+      "item": [
+        {
+          "name": "Get All Medicines",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/medicines",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines"]
+            }
+          }
+        },
+        {
+          "name": "Search Medicines",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/medicines/search?q=para",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "para"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Predict from Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"generic_name\": \"Paracetamol\",\n  \"brand_name\": \"Panadol\",\n  \"dosage_form\": \"Tablet\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medicines/predict/text",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "predict", "text"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pickup Requests",
+      "item": [
+        {
+          "name": "Create Pickup Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chwId\": \"chw_uuid_here\",\n  \"medicineName\": \"Diazepam (Valium)\",\n  \"disposalGuidance\": \"MUST be returned to CHW\",\n  \"reason\": \"no_longer_needed\",\n  \"pickupLocation\": \"KG 123 St, Remera, Kigali\",\n  \"preferredTime\": \"2024-10-15T10:00:00\",\n  \"consentGiven\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pickups",
+              "host": ["{{baseUrl}}"],
+              "path": ["pickups"]
+            }
+          }
+        },
+        {
+          "name": "Get My Pickup Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pickups",
+              "host": ["{{baseUrl}}"],
+              "path": ["pickups"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "CHWs",
+      "item": [
+        {
+          "name": "Get All CHWs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/chws",
+              "host": ["{{baseUrl}}"],
+              "path": ["chws"]
+            }
+          }
+        },
+        {
+          "name": "Get Nearby CHWs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/chws/nearby?sector=Remera",
+              "host": ["{{baseUrl}}"],
+              "path": ["chws", "nearby"],
+              "query": [
+                {
+                  "key": "sector",
+                  "value": "Remera"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Education",
+      "item": [
+        {
+          "name": "Get All Tips",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/education",
+              "host": ["{{baseUrl}}"],
+              "path": ["education"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get System Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
