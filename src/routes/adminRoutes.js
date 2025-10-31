@@ -6,6 +6,7 @@ const {
   updateUser,
   deleteUser,
   getAllDisposals,
+  getDisposalById,
   getAllPickups,
   getPendingUsers,
   approveUser,
@@ -35,6 +36,7 @@ router.put('/users/:id/activate', activateUser);
 router.put('/users/:id/deactivate', deactivateUser);
 
 router.get('/disposals', getAllDisposals);
+router.get('/disposals/:id', getDisposalById);
 router.get('/pickups', getAllPickups);
 
 module.exports = router;

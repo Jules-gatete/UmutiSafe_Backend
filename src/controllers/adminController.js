@@ -372,6 +372,40 @@ exports.getAllPickups = async (req, res, next) => {
   }
 };
 
+// @desc    Get single disposal (Admin)
+// @route   GET /api/admin/disposals/:id
+// @access  Private/Admin
+exports.getDisposalById = async (req, res, next) => {
+  try {
+    const disposal = await Disposal.findOne({
+      where: { id: req.params.id },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email', 'phone']
+        },
+        {
+          model: PickupRequest,
+          as: 'pickupRequest',
+          include: [
+            { model: User, as: 'requester', attributes: ['id', 'name', 'email', 'phone'] },
+            { model: User, as: 'chw', attributes: ['id', 'name', 'phone', 'sector'] }
+          ]
+        }
+      ]
+    });
+
+    if (!disposal) {
+      return res.status(404).json({ success: false, message: 'Disposal not found' });
+    }
+
+    res.status(200).json({ success: true, data: disposal });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get pending users (Admin)
 // @route   GET /api/admin/users/pending
 // @access  Private/Admin

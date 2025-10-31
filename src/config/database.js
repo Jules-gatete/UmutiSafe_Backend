@@ -66,6 +66,34 @@ const testConnection = async () => {
   }
 };
 
+// Wait for the DB to be ready with retries and exponential backoff. This is
+// useful on hosted platforms where the app may start before the managed
+// database is fully available. Exported so server startup can await it.
+const waitForConnection = async (opts = {}) => {
+  const maxAttempts = opts.maxAttempts || Number(process.env.DB_CONNECT_MAX_ATTEMPTS) || 8;
+  const initialDelay = opts.initialDelayMs || 1000; // 1s
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await sequelize.authenticate();
+      console.log(`✅ Database connection established (attempt ${attempt}).`);
+      return true;
+    } catch (err) {
+      const delay = initialDelay * Math.pow(2, attempt - 1);
+      console.warn(`⚠️ Database connect attempt ${attempt} failed. Retrying in ${Math.round(delay)}ms...`);
+      console.warn(err.message || err);
+      // On last attempt, rethrow so caller can handle exit
+      if (attempt === maxAttempts) {
+        console.error('❌ All attempts to connect to the database have failed.');
+        return false;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((res) => setTimeout(res, delay));
+    }
+  }
+  return false;
+};
+
 // Sync all models with database (creates tables automatically)
 const syncDatabase = async (force = false) => {
   try {
@@ -80,6 +108,7 @@ const syncDatabase = async (force = false) => {
 module.exports = {
   sequelize,
   testConnection,
+  waitForConnection,
   syncDatabase
 };
 

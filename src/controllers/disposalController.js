@@ -164,7 +164,7 @@ exports.getDisposal = async (req, res, next) => {
 // @access  Private
 exports.updateDisposal = async (req, res, next) => {
   try {
-    const { status, notes } = req.body;
+    const { status, notes, pickupRequestId } = req.body;
 
     const disposal = await Disposal.findOne({
       where: {
@@ -180,8 +180,9 @@ exports.updateDisposal = async (req, res, next) => {
       });
     }
 
-    if (status) disposal.status = status;
-    if (notes) disposal.notes = notes;
+  if (status) disposal.status = status;
+  if (notes) disposal.notes = notes;
+  if (pickupRequestId) disposal.pickupRequestId = pickupRequestId;
 
     if (status === 'completed') {
       disposal.completedAt = new Date();
@@ -204,17 +205,20 @@ exports.updateDisposal = async (req, res, next) => {
 // @access  Private
 exports.deleteDisposal = async (req, res, next) => {
   try {
-    const disposal = await Disposal.findOne({
-      where: {
-        id: req.params.id,
-        userId: req.user.id
-      }
-    });
+    // Allow admins to delete any disposal; regular users may only delete their own
+    const disposal = await Disposal.findByPk(req.params.id);
 
     if (!disposal) {
       return res.status(404).json({
         success: false,
         message: 'Disposal not found'
+      });
+    }
+
+    if (req.user.role !== 'admin' && disposal.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this disposal'
       });
     }
 

@@ -16,7 +16,8 @@ exports.createPickupRequest = async (req, res, next) => {
       longitude,
       preferredTime,
       consentGiven,
-      notes
+      notes,
+      disposalId
     } = req.body;
 
     // Validate CHW exists and has CHW role
@@ -38,20 +39,47 @@ exports.createPickupRequest = async (req, res, next) => {
       });
     }
 
-    const pickupRequest = await PickupRequest.create({
-      userId: req.user.id,
-      chwId,
-      medicineName,
-      disposalGuidance,
-      reason,
-      pickupLocation,
-      latitude,
-      longitude,
-      preferredTime,
-      consentGiven,
-      notes,
-      status: 'pending'
-    });
+    // Use a transaction so that pickup creation and optional disposal update are atomic
+    const t = await PickupRequest.sequelize.transaction();
+    let pickupRequest;
+    try {
+      pickupRequest = await PickupRequest.create({
+        userId: req.user.id,
+        chwId,
+        medicineName,
+        disposalGuidance,
+        reason,
+        pickupLocation,
+        latitude,
+        longitude,
+        preferredTime,
+        consentGiven,
+        notes,
+        status: 'pending'
+      }, { transaction: t });
+
+      // If the client supplied a disposalId, attempt to link it atomically
+      if (disposalId) {
+        const disposal = await Disposal.findOne({
+          where: { id: disposalId, userId: req.user.id },
+          transaction: t
+        });
+
+        if (disposal) {
+          disposal.pickupRequestId = pickupRequest.id;
+          disposal.status = 'pickup_requested';
+          await disposal.save({ transaction: t });
+        } else {
+          // disposal not found or not owned by requester; do not fail creation, just log
+          console.warn(`Pickup created for user ${req.user.id} but disposal ${disposalId} not found/owned`);
+        }
+      }
+
+      await t.commit();
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
 
     // Include user and CHW details in response
     const fullRequest = await PickupRequest.findByPk(pickupRequest.id, {
@@ -144,6 +172,11 @@ exports.getCHWPickupRequests = async (req, res, next) => {
           model: User,
           as: 'requester',
           attributes: ['id', 'name', 'phone', 'location']
+        },
+        {
+          model: require('../models').Disposal,
+          as: 'disposal',
+          attributes: ['id', 'genericName', 'brandName', 'dosageForm', 'status', 'pickupRequestId', 'userId']
         }
       ],
       order: [['preferredTime', 'ASC']],

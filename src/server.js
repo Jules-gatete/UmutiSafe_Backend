@@ -6,7 +6,7 @@ const compression = require('compression');
 const path = require('path');
 require('dotenv').config();
 
-const { testConnection, syncDatabase } = require('./config/database');
+const { testConnection, waitForConnection, syncDatabase } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
 // Import routes
@@ -23,9 +23,25 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - Allow multiple origins for development
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://umuti-safe-app.vercel.app/',
+  process.env.CORS_ORIGIN
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
@@ -56,6 +72,9 @@ app.use('/api/medicines', medicineRoutes);
 app.use('/api/chws', chwRoutes);
 app.use('/api/education', educationRoutes);
 app.use('/api/admin', adminRoutes);
+// children routes removed: feature was partially added then rolled back.
+// If you want to re-introduce children support, recreate the controller/model
+// and re-enable the route here.
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -114,11 +133,13 @@ const PORT = process.env.PORT || 5000;
 // Initialize database and start server
 const startServer = async () => {
   try {
-    // Test database connection
-    const connected = await testConnection();
+    // Wait for database connection with retries. This helps on hosting
+    // platforms (like Render) where the service may start before managed
+    // databases are fully ready. Configure attempts with DB_CONNECT_MAX_ATTEMPTS.
+    const connected = await waitForConnection();
 
     if (!connected) {
-      console.error('❌ Failed to connect to database. Please check your database configuration.');
+      console.error('❌ Failed to connect to database after multiple attempts. Please check your database configuration and Render environment variables.');
       process.exit(1);
     }
 

@@ -51,6 +51,7 @@ PickupRequest.hasOne(Disposal, {
   as: 'disposal'
 });
 
+
 // Disposal has many MedicineImages
 Disposal.hasMany(MedicineImage, {
   foreignKey: 'disposalId',
