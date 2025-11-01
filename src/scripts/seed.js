@@ -5,79 +5,94 @@ require('dotenv').config();
 const seedDatabase = async () => {
   try {
     console.log('🌱 Starting database seeding...\n');
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+    // SAFETY CHECK: Prevent accidental production seeding
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.ALLOW_PROD_SEED) {
+        console.error('❌ Seeding not allowed in production without ALLOW_PROD_SEED=true');
+        console.error('💡 To seed production, set ALLOW_PROD_SEED=true in environment');
+        console.error('⚠️  WARNING: This will recreate all tables and delete existing data!');
+        process.exit(1);
+      }
+      console.warn('⚠️  WARNING: Seeding production database. All existing data will be deleted!');
+      console.warn('⏳ Waiting 5 seconds... Press Ctrl+C to cancel.\n');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
 
     // Test connection
+    console.log('📡 Testing database connection...');
     await testConnection();
 
-    // Sync database
-    await syncDatabase(true); // Force recreate tables
+    // Sync database - Force recreate tables (DESTRUCTIVE!)
+    console.log('\n🔄 Syncing database (recreating tables)...');
+    await syncDatabase(true);
 
     // Seed Users
-    console.log('👥 Seeding users...');
+    console.log('\n👥 Seeding users...');
     const users = await User.bulkCreate([
       {
-        name: 'Jean Baptiste',
+        firstName: 'Jean',
+        lastName: 'Baptiste',
         email: 'jean.baptiste@email.com',
         password: 'password123',
         role: 'user',
-        phone: '+250 788 123 456',
+        phone: '+250788123456',
         location: 'Kigali, Gasabo',
-        avatar: 'JB',
+        status: 'active',
         isApproved: true,
         approvedAt: new Date()
       },
       {
-        name: 'Marie Claire',
+        firstName: 'Marie',
+        lastName: 'Claire',
         email: 'marie.claire@email.com',
         password: 'password123',
         role: 'chw',
-        phone: '+250 788 234 567',
+        phone: '+250788234567',
+        district: 'Gasabo',
         sector: 'Remera',
-        availability: 'available',
-        completedPickups: 45,
-        rating: 4.8,
-        coverageArea: 'Gasabo District - Remera Sector',
-        avatar: 'MC',
+        availability: true,
+        status: 'active',
         isApproved: true,
         approvedAt: new Date()
       },
       {
-        name: 'Admin User',
-        email: 'admin@umutisafe.gov.rw',
-        password: 'admin123',
+        firstName: 'System',
+        lastName: 'Administrator',
+        email: 'admin@umutisafe.rw',
+        password: 'Admin@123!',
         role: 'admin',
-        phone: '+250 788 345 678',
-        avatar: 'AU',
+        phone: '+250788345678',
+        status: 'active',
         isApproved: true,
         approvedAt: new Date()
       },
       {
-        name: 'Pierre Uwase',
+        firstName: 'Pierre',
+        lastName: 'Uwase',
         email: 'pierre.uwase@email.com',
         password: 'password123',
         role: 'chw',
-        phone: '+250 788 456 789',
+        phone: '+250788456789',
+        district: 'Gasabo',
         sector: 'Kimironko',
-        availability: 'busy',
-        completedPickups: 38,
-        rating: 4.6,
-        coverageArea: 'Gasabo District - Kimironko Sector',
-        avatar: 'PU',
+        availability: false,
+        status: 'active',
         isApproved: true,
         approvedAt: new Date()
       },
       {
-        name: 'Grace Mukamana',
+        firstName: 'Grace',
+        lastName: 'Mukamana',
         email: 'grace.mukamana@email.com',
         password: 'password123',
         role: 'chw',
-        phone: '+250 788 567 890',
+        phone: '+250788567890',
+        district: 'Kicukiro',
         sector: 'Gikondo',
-        availability: 'available',
-        completedPickups: 52,
-        rating: 4.9,
-        coverageArea: 'Kicukiro District - Gikondo Sector',
-        avatar: 'GM',
+        availability: true,
+        status: 'active',
         isApproved: true,
         approvedAt: new Date()
       }
@@ -85,7 +100,7 @@ const seedDatabase = async () => {
     console.log(`✅ Created ${users.length} users`);
 
     // Seed Medicines
-    console.log('💊 Seeding medicines...');
+    console.log('\n💊 Seeding medicines...');
     const medicines = await Medicine.bulkCreate([
       {
         genericName: 'Paracetamol',
@@ -93,9 +108,10 @@ const seedDatabase = async () => {
         dosageForm: 'Tablet',
         strength: '500mg',
         category: 'Analgesic',
-        riskLevel: 'LOW',
-        fdaApproved: true,
-        disposalInstructions: 'Mix with coffee grounds or kitty litter, seal in plastic bag, and dispose in regular trash. Remove personal information from labels.'
+        manufacturer: 'GSK',
+        disposalCategory: 'household',
+        safetyInstructions: 'Mix with coffee grounds or kitty litter, seal in plastic bag, and dispose in regular trash. Remove personal information from labels.',
+        requiresPickup: false
       },
       {
         genericName: 'Amoxicillin',
@@ -103,9 +119,10 @@ const seedDatabase = async () => {
         dosageForm: 'Capsule',
         strength: '250mg',
         category: 'Antibiotic',
-        riskLevel: 'MEDIUM',
-        fdaApproved: true,
-        disposalInstructions: 'Return to pharmacy or request CHW pickup. Do not dispose in household trash or flush down toilet.'
+        manufacturer: 'Pfizer',
+        disposalCategory: 'pharmaceutical',
+        safetyInstructions: 'Return to pharmacy or request CHW pickup. Do not dispose in household trash or flush down toilet.',
+        requiresPickup: true
       },
       {
         genericName: 'Diazepam',
@@ -113,9 +130,10 @@ const seedDatabase = async () => {
         dosageForm: 'Tablet',
         strength: '5mg',
         category: 'Controlled Substance',
-        riskLevel: 'HIGH',
-        fdaApproved: true,
-        disposalInstructions: 'MUST be returned to CHW or authorized collection site immediately. NEVER dispose in household trash.'
+        manufacturer: 'Roche',
+        disposalCategory: 'hazardous',
+        safetyInstructions: 'MUST be returned to CHW or authorized collection site immediately. NEVER dispose in household trash.',
+        requiresPickup: true
       },
       {
         genericName: 'Ibuprofen',
@@ -123,8 +141,10 @@ const seedDatabase = async () => {
         dosageForm: 'Tablet',
         strength: '400mg',
         category: 'NSAID',
-        riskLevel: 'LOW',
-        fdaApproved: true
+        manufacturer: 'Pfizer',
+        disposalCategory: 'household',
+        safetyInstructions: 'Can be disposed with household waste after mixing with undesirable substance.',
+        requiresPickup: false
       },
       {
         genericName: 'Ciprofloxacin',
@@ -132,8 +152,10 @@ const seedDatabase = async () => {
         dosageForm: 'Tablet',
         strength: '500mg',
         category: 'Antibiotic',
-        riskLevel: 'MEDIUM',
-        fdaApproved: true
+        manufacturer: 'Bayer',
+        disposalCategory: 'pharmaceutical',
+        safetyInstructions: 'Return unused antibiotics to pharmacy or CHW to prevent environmental contamination.',
+        requiresPickup: true
       },
       {
         genericName: 'Morphine Sulfate',
@@ -141,155 +163,157 @@ const seedDatabase = async () => {
         dosageForm: 'Tablet',
         strength: '30mg',
         category: 'Opioid',
-        riskLevel: 'HIGH',
-        fdaApproved: true
+        manufacturer: 'Purdue',
+        disposalCategory: 'hazardous',
+        safetyInstructions: 'High-risk controlled substance. MUST be disposed through CHW or authorized facility immediately.',
+        requiresPickup: true
       }
     ]);
     console.log(`✅ Created ${medicines.length} medicines`);
 
     // Seed Disposals
-    console.log('🗑️  Seeding disposals...');
+    console.log('\n🗑️  Seeding disposals...');
     const disposals = await Disposal.bulkCreate([
       {
         userId: users[0].id,
-        genericName: 'Paracetamol',
+        medicineName: 'Paracetamol',
         brandName: 'Panadol',
         dosageForm: 'Tablet',
-        packagingType: 'Blister Pack',
-        predictedCategory: 'Analgesic',
-        riskLevel: 'LOW',
-        confidence: 0.95,
-        status: 'completed',
+        quantity: '20 tablets',
+        expiryDate: new Date('2024-06-15'),
         reason: 'expired',
+        disposalCategory: 'household',
+        riskLevel: 'low',
+        status: 'completed',
         disposalGuidance: 'Mix with coffee grounds or kitty litter, seal in plastic bag, dispose in regular trash.',
         completedAt: new Date('2024-09-18')
       },
       {
         userId: users[0].id,
-        genericName: 'Amoxicillin',
+        medicineName: 'Amoxicillin',
         brandName: 'Amoxil',
         dosageForm: 'Capsule',
-        packagingType: 'Bottle',
-        predictedCategory: 'Antibiotic',
-        riskLevel: 'MEDIUM',
-        confidence: 0.89,
-        status: 'pending_review',
+        quantity: '10 capsules',
+        expiryDate: new Date('2025-03-20'),
         reason: 'completed_treatment',
+        disposalCategory: 'pharmaceutical',
+        riskLevel: 'medium',
+        status: 'pending',
         disposalGuidance: 'Return to pharmacy or CHW for proper disposal. Do not flush or throw in trash.'
       },
       {
         userId: users[0].id,
-        genericName: 'Diazepam',
+        medicineName: 'Diazepam',
         brandName: 'Valium',
         dosageForm: 'Tablet',
-        packagingType: 'Blister Pack',
-        predictedCategory: 'Controlled Substance',
-        riskLevel: 'HIGH',
-        confidence: 0.92,
-        status: 'pickup_requested',
+        quantity: '15 tablets',
+        expiryDate: new Date('2025-12-10'),
         reason: 'no_longer_needed',
+        disposalCategory: 'hazardous',
+        riskLevel: 'high',
+        status: 'pickup_scheduled',
         disposalGuidance: 'MUST be returned to CHW or authorized collection site. Do not dispose in household trash.'
       }
     ]);
     console.log(`✅ Created ${disposals.length} disposals`);
 
     // Seed Pickup Requests
-    console.log('🚚 Seeding pickup requests...');
+    console.log('\n🚚 Seeding pickup requests...');
     const pickupRequests = await PickupRequest.bulkCreate([
       {
         userId: users[0].id,
+        disposalId: disposals[2].id,
         chwId: users[1].id,
-        medicineName: 'Diazepam (Valium)',
-        disposalGuidance: 'MUST be returned to CHW or authorized collection site.',
-        reason: 'no_longer_needed',
-        pickupLocation: 'KG 123 St, Remera, Kigali',
-        preferredTime: new Date('2024-10-08T10:00:00'),
+        pickupAddress: 'KG 123 St, Remera, Gasabo, Kigali',
+        pickupDate: new Date('2024-10-08'),
+        pickupTime: '10:00 AM',
         status: 'scheduled',
-        consentGiven: true
+        notes: 'High-risk controlled substance - handle with care'
       },
       {
         userId: users[0].id,
+        disposalId: disposals[1].id,
         chwId: users[4].id,
-        medicineName: 'Amoxicillin (Amoxil)',
-        disposalGuidance: 'Return to pharmacy or CHW for proper disposal.',
-        reason: 'completed_treatment',
-        pickupLocation: 'KG 123 St, Remera, Kigali',
-        preferredTime: new Date('2024-10-12T14:00:00'),
+        pickupAddress: 'KG 123 St, Remera, Gasabo, Kigali',
+        pickupDate: new Date('2024-10-12'),
+        pickupTime: '2:00 PM',
         status: 'pending',
-        consentGiven: true
+        notes: 'Leftover antibiotics from completed treatment'
       }
     ]);
     console.log(`✅ Created ${pickupRequests.length} pickup requests`);
 
-    // Update disposal with pickup request
-    await disposals[2].update({ pickupRequestId: pickupRequests[0].id });
-
     // Seed Education Tips
-    console.log('📚 Seeding education tips...');
+    console.log('\n📚 Seeding education tips...');
     const educationTips = await EducationTip.bulkCreate([
       {
         title: 'Why Proper Medicine Disposal Matters',
-        icon: 'AlertTriangle',
-        summary: 'Improper disposal can contaminate water supplies, harm wildlife, and lead to medicine misuse.',
         content: 'When medicines are flushed down toilets or thrown in regular trash, they can end up in rivers and lakes, affecting aquatic life and potentially entering our drinking water. Some medicines can persist in the environment for years. Always use proper disposal methods to protect our community and environment.',
         category: 'general',
-        displayOrder: 1
+        imageUrl: null
       },
       {
         title: 'Expired Medicine Risks',
-        icon: 'Clock',
-        summary: 'Expired medicines may be ineffective or even harmful. Check expiration dates regularly.',
         content: 'Medicines past their expiration date may lose potency or break down into harmful compounds. Create a habit of checking your medicine cabinet every 6 months. Mark expiration dates clearly and set calendar reminders to review your supplies.',
         category: 'safety',
-        displayOrder: 2
+        imageUrl: null
       },
       {
         title: 'Safe Storage at Home',
-        icon: 'Lock',
-        summary: 'Store medicines in a cool, dry place away from children and pets.',
         content: 'Keep all medicines in their original containers with labels intact. Store them in a locked cabinet if possible, away from heat and humidity. Never store medicines in bathrooms where moisture can degrade them. Keep emergency contact numbers visible.',
         category: 'storage',
-        displayOrder: 3
+        imageUrl: null
       },
       {
         title: 'Never Share Prescription Medicines',
-        icon: 'Users',
-        summary: 'Prescription medicines are prescribed for specific individuals and conditions.',
         content: 'What works for one person may be dangerous for another. Sharing prescription medicines can lead to adverse reactions, drug interactions, or mask symptoms of serious conditions. Always consult a healthcare provider before taking any medicine.',
         category: 'safety',
-        displayOrder: 4
+        imageUrl: null
       },
       {
         title: 'Recognize High-Risk Medicines',
-        icon: 'ShieldAlert',
-        summary: 'Some medicines require special disposal procedures due to their potential for misuse or environmental harm.',
         content: 'Controlled substances (opioids, sedatives), chemotherapy drugs, and certain antibiotics must never be thrown in regular trash. UmutiSafe automatically identifies these high-risk medicines and connects you with CHWs for safe disposal.',
         category: 'disposal',
-        displayOrder: 5
+        imageUrl: null
       },
       {
         title: 'Community Health Worker Support',
-        icon: 'Heart',
-        summary: 'CHWs are trained professionals ready to help you dispose of medicines safely.',
         content: 'Your local Community Health Worker can provide guidance, arrange pickups for high-risk medicines, and answer questions about medicine safety. They are your trusted partners in keeping your family and community safe.',
         category: 'general',
-        displayOrder: 6
+        imageUrl: null
       }
     ]);
     console.log(`✅ Created ${educationTips.length} education tips`);
 
-    console.log('\n✅ Database seeding completed successfully!\n');
+    console.log('\n🎉 Database seeding completed successfully!\n');
+    console.log('📊 Database Summary:');
+    console.log(`   Users: ${users.length}`);
+    console.log(`   Medicines: ${medicines.length}`);
+    console.log(`   Disposals: ${disposals.length}`);
+    console.log(`   Pickup Requests: ${pickupRequests.length}`);
+    console.log(`   Education Tips: ${educationTips.length}\n`);
+    
     console.log('📝 Test Credentials:');
-    console.log('   User: jean.baptiste@email.com / password123');
-    console.log('   CHW: marie.claire@email.com / password123');
-    console.log('   Admin: admin@umutisafe.gov.rw / admin123\n');
+    console.log('   👤 Regular User:');
+    console.log('      Email: jean.baptiste@email.com');
+    console.log('      Password: password123\n');
+    console.log('   🏥 CHW (Remera):');
+    console.log('      Email: marie.claire@email.com');
+    console.log('      Password: password123\n');
+    console.log('   👨‍⚕️ CHW (Gikondo):');
+    console.log('      Email: grace.mukamana@email.com');
+    console.log('      Password: password123\n');
+    console.log('   🔐 Admin:');
+    console.log('      Email: admin@umutisafe.rw');
+    console.log('      Password: Admin@123!');
+    console.log('      ⚠️  Change this password immediately after first login!\n');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error seeding database:', error);
+    console.error('\n❌ Error seeding database:', error);
+    console.error(error.stack);
     process.exit(1);
   }
 };
 
 seedDatabase();
-

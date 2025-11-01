@@ -23,19 +23,26 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration - Allow multiple origins for development
+// CORS configuration - support comma-separated CORS_ORIGIN env var and common localhost preview ports
+const envOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
+
 const allowedOrigins = [
+  ...envOrigins,
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://umuti-safe-app.vercel.app/',
-  process.env.CORS_ORIGIN
+  // some previews may run on other ports (reported: 4174) — include common preview port for local testing
+  'http://localhost:4174',
+  // production frontend
+  'https://umuti-safe-app.vercel.app/login'
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
