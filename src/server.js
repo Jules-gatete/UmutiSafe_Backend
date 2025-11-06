@@ -23,7 +23,10 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration - support comma-separated CORS_ORIGIN env var and common localhost preview ports
+// CORS configuration
+// By default allow only configured origins (via CORS_ORIGIN) and common local preview ports.
+// To allow all origins (useful for previews or testing), set CORS_ALLOW_ALL=true in env
+// or run in development mode (NODE_ENV=development).
 const envOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
   : [];
@@ -32,18 +35,19 @@ const allowedOrigins = [
   ...envOrigins,
   'http://localhost:5173',
   'http://localhost:5174',
-  // some previews may run on other ports (reported: 4174) — include common preview port for local testing
   'http://localhost:4174',
-  // production frontend
-  'https://umuti-safe-app.vercel.app/login'
+  'https://umuti-safe-app.vercel.app'
 ].filter(Boolean);
 
+const allowAll = process.env.CORS_ALLOW_ALL === 'true' || process.env.NODE_ENV === 'development';
+
 app.use(cors({
-  origin: function (origin, callback) {
+  // When allowAll is true we reflect the request origin and allow credentials
+  origin: allowAll ? true : function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

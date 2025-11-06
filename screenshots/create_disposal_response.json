@@ -1,0 +1,24 @@
+﻿{
+    "success":  true,
+    "message":  "Disposal created successfully",
+    "data":  {
+                 "id":  "caf284aa-744a-4090-a7fb-69abbea34dae",
+                 "userId":  "bc7fdc07-a5ca-43a9-b732-d5b10d822cd2",
+                 "genericName":  "Paracetamol",
+                 "brandName":  "Panadol",
+                 "dosageForm":  "tablet",
+                 "packagingType":  "box",
+                 "predictedCategory":  "Analgesic",
+                 "riskLevel":  "LOW",
+                 "confidence":  null,
+                 "disposalGuidance":  null,
+                 "reason":  null,
+                 "imageUrl":  null,
+                 "status":  "pending_review",
+                 "updatedAt":  "2025-11-01T18:40:44.308Z",
+                 "createdAt":  "2025-11-01T18:40:44.308Z",
+                 "pickupRequestId":  null,
+                 "completedAt":  null,
+                 "notes":  null
+             }
+}

@@ -10,8 +10,10 @@
     "build": "echo \"No build step for umutisafe-backend (pure Node.js). Use 'npm start' to run in production.\"",
     "migrate": "node src/scripts/migrate.js",
     "migrate:force": "FORCE_MIGRATE=true node src/scripts/migrate.js",
+  "db:migrate": "node src/scripts/migrate.js",
     "seed": "node src/scripts/seed.js",
     "seed:prod": "ALLOW_PROD_SEED=true node src/scripts/seed.js"
+    ,"db:seed": "node src/scripts/seed.js"
   },
   "keywords": [
     "medicine",

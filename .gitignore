@@ -1,8 +1,36 @@
+# Node artifacts
 node_modules/
+npm-debug.log*
+
+# Environment
 .env
-uploads/
-*.log
-.DS_Store
+.env.*.local
+.env.local
+.env.production
+
+# Build outputs
 dist/
 build/
+
+# Uploads and runtime files
+uploads/
+*.log
+
+# Editor / OS metadata
+.DS_Store
+.vscode/
+.idea/
+
+# Coverage, cache, temp
+coverage/
+.cache/
+logs/
+
+# Optional: generated archives
+*.zip
+
+# Ignore markdown files except the main README.md
+*.md
+!README.md
+
 
