@@ -3,9 +3,19 @@ const { testConnection, syncDatabase } = require('../config/database');
 const models = require('../models');
 require('dotenv').config();
 
+const argv = new Set(process.argv.slice(2));
+const force = argv.has('--force') || argv.has('--fresh') || argv.has('--reset');
+const alter = !force && (argv.has('--alter') || argv.has('--safe-alter'));
+const logSql = argv.has('--log-sql') || argv.has('--verbose');
+
+if (force && alter) {
+  console.warn('⚠️  Both --force and --alter were supplied. Force takes precedence and will drop/recreate all tables.');
+}
+
 const migrate = async () => {
   try {
     console.log('🔄 Running database migrations...\n');
+    console.log(`   • Mode: ${force ? 'force (drop & recreate)' : alter ? 'alter (non-destructive)' : 'safe (create missing tables)'}${logSql ? ' + SQL logging' : ''}`);
 
     // Test connection
     const connected = await testConnection();
@@ -18,9 +28,12 @@ const migrate = async () => {
     console.log('📦 Models loaded:', Object.keys(models).join(', '));
     console.log('');
 
-    // Sync database (creates/updates tables)
-    // Using force=true to drop and recreate all tables cleanly
-    await syncDatabase(true);
+    // Sync database (creates/updates tables) using the requested strategy
+    await syncDatabase({
+      force,
+      alter,
+      logging: logSql ? console.log : false
+    });
 
     console.log('\n✅ Database migration completed successfully!\n');
     process.exit(0);

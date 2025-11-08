@@ -2,15 +2,30 @@ const { sequelize, testConnection, syncDatabase } = require('../config/database'
 const { User, Medicine, Disposal, PickupRequest, EducationTip } = require('../models');
 require('dotenv').config();
 
+const argv = new Set(process.argv.slice(2));
+const resetSchema = argv.has('--force') || argv.has('--fresh') || argv.has('--reset');
+const skipSync = argv.has('--skip-sync');
+const logSql = argv.has('--log-sql') || argv.has('--verbose');
+const alterSchema = !resetSchema && argv.has('--alter');
+
 const seedDatabase = async () => {
+  let transaction;
   try {
     console.log('🌱 Starting database seeding...\n');
+    console.log(`   • Schema sync: ${skipSync ? 'skipped (--skip-sync)' : resetSchema ? 'force (drop & recreate)' : alterSchema ? 'alter (non-destructive)' : 'safe (create missing tables)'}${logSql ? ' + SQL logging' : ''}`);
 
     // Test connection
     await testConnection();
 
-    // Sync database
-    await syncDatabase(true); // Force recreate tables
+    if (!skipSync) {
+      await syncDatabase({
+        force: resetSchema,
+        alter: alterSchema,
+        logging: logSql ? console.log : false
+      });
+    }
+
+    transaction = await sequelize.transaction();
 
     // Seed Users
     console.log('👥 Seeding users...');
@@ -81,7 +96,7 @@ const seedDatabase = async () => {
         isApproved: true,
         approvedAt: new Date()
       }
-    ], { individualHooks: true }); // Enable hooks to hash passwords
+    ], { individualHooks: true, transaction }); // Enable hooks to hash passwords
     console.log(`✅ Created ${users.length} users`);
 
     // Seed Medicines
@@ -144,24 +159,115 @@ const seedDatabase = async () => {
         riskLevel: 'HIGH',
         fdaApproved: true
       }
-    ]);
+    ], { transaction });
     console.log(`✅ Created ${medicines.length} medicines`);
 
     // Seed Disposals
     console.log('🗑️  Seeding disposals...');
+
+    const predictionImageSample = {
+      dosage_form: [
+        { value: 'tablets', confidence: 0.9869 },
+        { value: 'film coated tablets', confidence: 0.007 },
+        { value: 'chewable tablets', confidence: 0.0016 }
+      ],
+      manufacturer: [
+        { value: 'other', confidence: 0.9975 },
+        { value: 'maxtar bio-genics', confidence: 0.00026 },
+        { value: 'industrias farmacéuticas almirall, s.a.', confidence: 0.0002 }
+      ],
+      disposal_category: { value: '6', confidence: 0.8694 },
+      method_of_disposal: [
+        { value: 'landfill', confidence: 0.8082 },
+        { value: 'medium and high-temperature incineration (cement kiln incinerator)', confidence: 0.9520 },
+        { value: 'waste encapsulation', confidence: 0.8871 },
+        { value: 'waste inertization', confidence: 0.9173 }
+      ],
+      handling_method: 'To be removed from outer packaging but remain in inner packaging and placed in clean plastic or steel drums for treatment by encapsulation. Large quantities of loose tablets should be mixed with other medicines in different steel drums to avoid high concentrations of a single drug in any one drum.',
+      disposal_remarks: 'No more than 1% of daily municipal waste should be disposed of daily in an untreated form (non-immobilized) to a landfill.',
+      similar_generic_name: 'atenolol',
+      similarity_distance: 0.4582,
+      input_generic_name: 'Daparyllo'
+    };
+
+    const predictionTextSample = {
+      dosage_form: [
+        { value: 'capsules', confidence: 0.9321 },
+        { value: 'tablets', confidence: 0.0564 }
+      ],
+      manufacturer: [
+        { value: 'generic manufacturer', confidence: 0.8123 },
+        { value: 'glaxo', confidence: 0.0765 }
+      ],
+      disposal_category: { value: '3', confidence: 0.7456 },
+      method_of_disposal: [
+        { value: 'return to pharmacy', confidence: 0.9444 },
+        { value: 'community take-back', confidence: 0.6544 }
+      ],
+      handling_method: 'Return to a licensed collection point or coordinate CHW pickup.',
+      disposal_remarks: 'Keep sealed until collected to prevent misuse.',
+      similar_generic_name: 'amoxicillin',
+      similarity_distance: 0.2212,
+      input_generic_name: 'Amoxicillin'
+    };
+
+    const predictionControlledSample = {
+      dosage_form: [
+        { value: 'tablet', confidence: 0.9812 }
+      ],
+      manufacturer: [
+        { value: 'roche', confidence: 0.5621 }
+      ],
+      disposal_category: { value: '5', confidence: 0.9132 },
+      method_of_disposal: [
+        { value: 'schedule CHW pickup', confidence: 0.991 },
+        { value: 'secure lockbox storage', confidence: 0.712 }
+      ],
+      handling_method: 'Store securely and arrange immediate pickup by certified personnel.',
+      disposal_remarks: 'Do not leave unattended; controlled substances require documented hand-off.',
+      similar_generic_name: 'diazepam',
+      similarity_distance: 0.119,
+      input_generic_name: 'Diazepam'
+    };
+
     const disposals = await Disposal.bulkCreate([
       {
         userId: users[0].id,
-        genericName: 'Paracetamol',
-        brandName: 'Panadol',
+        genericName: 'Daparyllo',
+        brandName: 'Daparyllo',
         dosageForm: 'Tablet',
         packagingType: 'Blister Pack',
-        predictedCategory: 'Analgesic',
-        riskLevel: 'LOW',
-        confidence: 0.95,
+        medicineName: 'Daparyllo',
+        inputGenericName: predictionImageSample.input_generic_name,
+        predictedCategory: predictionImageSample.disposal_category.value,
+        predictedCategoryConfidence: predictionImageSample.disposal_category.confidence,
+        confidence: predictionImageSample.disposal_category.confidence,
         status: 'completed',
         reason: 'expired',
-        disposalGuidance: 'Mix with coffee grounds or kitty litter, seal in plastic bag, dispose in regular trash.',
+        disposalGuidance: predictionImageSample.method_of_disposal[0]?.value,
+        handlingMethod: predictionImageSample.handling_method,
+        disposalRemarks: predictionImageSample.disposal_remarks,
+        categoryCode: predictionImageSample.disposal_category.value,
+        categoryLabel: null,
+        similarGenericName: predictionImageSample.similar_generic_name,
+        similarityDistance: predictionImageSample.similarity_distance,
+        predictionInputType: 'image',
+        analysis: '# Medicine Analysis: Daparyllo\nBased on image input.',
+        disposalMethods: predictionImageSample.method_of_disposal,
+        dosageForms: predictionImageSample.dosage_form,
+        manufacturers: predictionImageSample.manufacturer,
+        messages: [
+          'Successfully processed image prediction.',
+          'Confidence high for landfill and encapsulation methods.'
+        ],
+        errors: [],
+        predictionDetails: predictionImageSample,
+        metadata: {
+          seeded: true,
+          inputType: 'image',
+          success: true,
+          modelVersion: 'seed-v2'
+        },
         completedAt: new Date('2024-09-18')
       },
       {
@@ -170,12 +276,34 @@ const seedDatabase = async () => {
         brandName: 'Amoxil',
         dosageForm: 'Capsule',
         packagingType: 'Bottle',
-        predictedCategory: 'Antibiotic',
-        riskLevel: 'MEDIUM',
-        confidence: 0.89,
+        medicineName: 'Amoxicillin',
+        inputGenericName: predictionTextSample.input_generic_name,
+        predictedCategory: predictionTextSample.disposal_category.value,
+        predictedCategoryConfidence: predictionTextSample.disposal_category.confidence,
+        confidence: predictionTextSample.disposal_category.confidence,
         status: 'pending_review',
         reason: 'completed_treatment',
-        disposalGuidance: 'Return to pharmacy or CHW for proper disposal. Do not flush or throw in trash.'
+        disposalGuidance: predictionTextSample.method_of_disposal[0]?.value,
+        handlingMethod: predictionTextSample.handling_method,
+        disposalRemarks: predictionTextSample.disposal_remarks,
+        categoryCode: predictionTextSample.disposal_category.value,
+        categoryLabel: null,
+        similarGenericName: predictionTextSample.similar_generic_name,
+        similarityDistance: predictionTextSample.similarity_distance,
+        predictionInputType: 'text',
+        analysis: '## Disposal Guidance\nReturn to pharmacy.',
+        disposalMethods: predictionTextSample.method_of_disposal,
+        dosageForms: predictionTextSample.dosage_form,
+        manufacturers: predictionTextSample.manufacturer,
+        messages: ['Model recommends controlled collection to avoid misuse.'],
+        errors: [],
+        predictionDetails: predictionTextSample,
+        metadata: {
+          seeded: true,
+          inputType: 'text',
+          success: true,
+          modelVersion: 'seed-v2'
+        }
       },
       {
         userId: users[0].id,
@@ -183,14 +311,36 @@ const seedDatabase = async () => {
         brandName: 'Valium',
         dosageForm: 'Tablet',
         packagingType: 'Blister Pack',
-        predictedCategory: 'Controlled Substance',
-        riskLevel: 'HIGH',
-        confidence: 0.92,
+        medicineName: 'Diazepam',
+        inputGenericName: predictionControlledSample.input_generic_name,
+        predictedCategory: predictionControlledSample.disposal_category.value,
+        predictedCategoryConfidence: predictionControlledSample.disposal_category.confidence,
+        confidence: predictionControlledSample.disposal_category.confidence,
         status: 'pickup_requested',
         reason: 'no_longer_needed',
-        disposalGuidance: 'MUST be returned to CHW or authorized collection site. Do not dispose in household trash.'
+        disposalGuidance: predictionControlledSample.method_of_disposal[0]?.value,
+        handlingMethod: predictionControlledSample.handling_method,
+        disposalRemarks: predictionControlledSample.disposal_remarks,
+        categoryCode: predictionControlledSample.disposal_category.value,
+        categoryLabel: null,
+        similarGenericName: predictionControlledSample.similar_generic_name,
+        similarityDistance: predictionControlledSample.similarity_distance,
+        predictionInputType: 'text',
+        analysis: '## Controlled Substance Handling\nSchedule certified pickup immediately.',
+        disposalMethods: predictionControlledSample.method_of_disposal,
+        dosageForms: predictionControlledSample.dosage_form,
+        manufacturers: predictionControlledSample.manufacturer,
+        messages: ['Requires CHW intervention before disposal.'],
+        errors: [],
+        predictionDetails: predictionControlledSample,
+        metadata: {
+          seeded: true,
+          inputType: 'text',
+          success: true,
+          modelVersion: 'seed-v2'
+        }
       }
-    ]);
+    ], { transaction });
     console.log(`✅ Created ${disposals.length} disposals`);
 
     // Seed Pickup Requests
@@ -218,7 +368,7 @@ const seedDatabase = async () => {
         status: 'pending',
         consentGiven: true
       }
-    ]);
+    ], { transaction });
     console.log(`✅ Created ${pickupRequests.length} pickup requests`);
 
     // Update disposal with pickup request
@@ -226,7 +376,7 @@ const seedDatabase = async () => {
 
     // Seed Education Tips
     console.log('📚 Seeding education tips...');
-    const educationTips = await EducationTip.bulkCreate([
+  const educationTips = await EducationTip.bulkCreate([
       {
         title: 'Why Proper Medicine Disposal Matters',
         icon: 'AlertTriangle',
@@ -276,7 +426,10 @@ const seedDatabase = async () => {
         displayOrder: 6
       }
     ]);
-    console.log(`✅ Created ${educationTips.length} education tips`);
+  console.log(`✅ Created ${educationTips.length} education tips`);
+
+  await transaction.commit();
+  transaction = null;
 
     console.log('\n✅ Database seeding completed successfully!\n');
     console.log('📝 Test Credentials:');
@@ -286,6 +439,14 @@ const seedDatabase = async () => {
 
     process.exit(0);
   } catch (error) {
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error('⚠️  Failed to rollback transaction:', rollbackError.message || rollbackError);
+      }
+    }
+
     console.error('❌ Error seeding database:', error);
     process.exit(1);
   }

@@ -8,15 +8,18 @@ const {
   updateMedicine,
   deleteMedicine,
   predictFromText,
-  predictFromImage
+  predictFromImage,
+  uploadMedicinesCsv
 } = require('../controllers/medicineController');
 const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const uploadCsv = require('../middleware/uploadCsv');
 
 router.get('/', getAllMedicines);
 router.get('/search', searchMedicines);
 router.post('/predict/text', predictFromText);
 router.post('/predict/image', upload.single('image'), predictFromImage);
+router.post('/upload', protect, authorize('admin'), uploadCsv.single('file'), uploadMedicinesCsv);
 
 router.get('/:id', getMedicine);
 

@@ -1,5 +1,7 @@
 const { Medicine } = require('../models');
 const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
+const { parse } = require('csv-parse/sync');
 
 // @desc    Get all medicines
 // @route   GET /api/medicines
@@ -215,6 +217,144 @@ exports.deleteMedicine = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Medicine deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Bulk upload medicines from CSV (Admin only)
+// @route   POST /api/medicines/upload
+// @access  Private/Admin
+exports.uploadMedicinesCsv = async (req, res, next) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        success: false,
+        message: 'CSV file is required'
+      });
+    }
+
+    const csvString = req.file.buffer.toString('utf-8');
+
+    if (!csvString.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Uploaded file is empty'
+      });
+    }
+
+    let records = [];
+    try {
+      records = parse(csvString, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true
+      });
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unable to parse CSV file. Ensure it has a header row and uses valid CSV formatting.'
+      });
+    }
+
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'CSV file does not contain any data rows'
+      });
+    }
+
+    const requiredColumns = ['generic name', 'brand name', 'dosage form', 'strength', 'category', 'risk level'];
+
+    const missingColumns = requiredColumns.filter((col) => {
+      const hasColumn = Object.keys(records[0]).some((key) => key.toLowerCase().trim() === col);
+      return !hasColumn;
+    });
+
+    if (missingColumns.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required columns: ${missingColumns.join(', ')}`
+      });
+    }
+
+    const normalizeRiskLevel = (value) => {
+      if (!value) return 'MEDIUM';
+      const normalized = value.toString().trim().toUpperCase();
+      if (['LOW', 'MEDIUM', 'HIGH'].includes(normalized)) {
+        return normalized;
+      }
+      return 'MEDIUM';
+    };
+
+    const toBoolean = (value) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value !== 0;
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        return ['true', '1', 'yes', 'y'].includes(normalized);
+      }
+      return true;
+    };
+
+    const results = {
+      created: 0,
+      updated: 0,
+      skipped: 0
+    };
+
+    await sequelize.transaction(async (transaction) => {
+      for (const rawRecord of records) {
+        const getColumn = (name) => {
+          const entry = Object.entries(rawRecord).find(([key]) => key.toLowerCase().trim() === name);
+          return entry ? entry[1] : undefined;
+        };
+
+        const genericName = getColumn('generic name');
+        const dosageForm = getColumn('dosage form');
+        const category = getColumn('category');
+
+        if (!genericName || !dosageForm || !category) {
+          results.skipped += 1;
+          continue;
+        }
+
+        const payload = {
+          genericName: genericName.trim(),
+          brandName: (getColumn('brand name') || '').trim() || null,
+          dosageForm: dosageForm.trim(),
+          strength: (getColumn('strength') || '').trim() || null,
+          category: category.trim(),
+          riskLevel: normalizeRiskLevel(getColumn('risk level')),
+          manufacturer: (getColumn('manufacturer') || '').trim() || null,
+          fdaApproved: toBoolean(getColumn('fda approved')),
+          disposalInstructions: (getColumn('disposal instructions') || '').trim() || null,
+          isActive: true
+        };
+
+        const existing = await Medicine.findOne({
+          where: {
+            genericName: payload.genericName,
+            dosageForm: payload.dosageForm
+          },
+          transaction
+        });
+
+        if (existing) {
+          await existing.update(payload, { transaction });
+          results.updated += 1;
+        } else {
+          await Medicine.create(payload, { transaction });
+          results.created += 1;
+        }
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Medicines registry updated successfully',
+      data: results
     });
   } catch (error) {
     next(error);

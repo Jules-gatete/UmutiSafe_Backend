@@ -18,8 +18,78 @@ exports.createDisposal = async (req, res, next) => {
       confidence,
       disposalGuidance,
       reason,
-      imageUrl
+      imageUrl,
+      handlingMethod,
+      disposalRemarks,
+      categoryCode,
+      categoryLabel,
+      similarGenericName,
+      similarityDistance,
+      predictionInputType,
+      predictionSource,
+      modelVersion,
+      analysis,
+      disposalMethods,
+      dosageForms,
+      manufacturers,
+      messages,
+      metadata,
+      medicineName,
+      inputGenericName,
+      predictedCategoryConfidence,
+      predictionDetails,
+      errors
     } = req.body;
+
+    const parseMaybeJson = (value, fieldName) => {
+      if (value === undefined || value === null || value === '') {
+        return null;
+      }
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch (err) {
+          console.warn(`⚠️  Unable to parse JSON field "${fieldName}". Falling back to raw string.`, err.message);
+          return value;
+        }
+      }
+      return value;
+    };
+
+    const toNullableNumber = (value) => {
+      if (value === undefined || value === null || value === '') return null;
+      const num = Number(value);
+      return Number.isNaN(num) ? null : num;
+    };
+
+    const clampConfidence = (value) => {
+      const num = toNullableNumber(value);
+      if (num === null) return null;
+      if (num < 0) return 0;
+      if (num > 1 && num <= 100) {
+        return Math.min(num / 100, 1);
+      }
+      return num > 1 ? 1 : num;
+    };
+
+    const normalizeRisk = (value) => {
+      const allowed = ['LOW', 'MEDIUM', 'HIGH'];
+      const normalized = typeof value === 'string' ? value.trim().toUpperCase() : value;
+      return allowed.includes(normalized) ? normalized : null;
+    };
+
+    const normalizeInputType = (value) => {
+      const map = ['text', 'image', 'manual'];
+      if (typeof value === 'string') {
+        const lower = value.trim().toLowerCase();
+        if (map.includes(lower)) {
+          return lower;
+        }
+      }
+      if (req.file) return 'image';
+      if (predictedCategory) return 'text';
+      return null;
+    };
 
     const disposal = await Disposal.create({
       userId: req.user.id,
@@ -27,13 +97,33 @@ exports.createDisposal = async (req, res, next) => {
       brandName,
       dosageForm,
       packagingType,
+  medicineName: medicineName || null,
+  inputGenericName: inputGenericName || null,
       predictedCategory,
-      riskLevel,
-      confidence,
+  predictedCategoryConfidence: clampConfidence(predictedCategoryConfidence),
+  riskLevel: normalizeRisk(riskLevel),
+  confidence: clampConfidence(confidence || predictedCategoryConfidence),
       disposalGuidance,
       reason,
       imageUrl: imageUrl || null,
-      status: 'pending_review'
+      status: 'pending_review',
+      handlingMethod: handlingMethod || null,
+      disposalRemarks: disposalRemarks || null,
+      categoryCode: categoryCode || null,
+      categoryLabel: categoryLabel || null,
+      similarGenericName: similarGenericName || null,
+      similarityDistance: toNullableNumber(similarityDistance),
+      predictionInputType: normalizeInputType(predictionInputType),
+      predictionSource: predictionSource || null,
+      modelVersion: modelVersion || null,
+      analysis: analysis || null,
+      disposalMethods: parseMaybeJson(disposalMethods, 'disposalMethods'),
+      dosageForms: parseMaybeJson(dosageForms, 'dosageForms'),
+      manufacturers: parseMaybeJson(manufacturers, 'manufacturers'),
+      messages: parseMaybeJson(messages, 'messages'),
+      errors: parseMaybeJson(errors, 'errors'),
+      predictionDetails: parseMaybeJson(predictionDetails, 'predictionDetails'),
+      metadata: parseMaybeJson(metadata, 'metadata')
     });
 
     // If an image file was uploaded via multer (req.file), create a MedicineImage record

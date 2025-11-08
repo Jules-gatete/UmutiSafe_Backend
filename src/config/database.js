@@ -103,22 +103,36 @@ const waitForConnection = async (opts = {}) => {
   return false;
 };
 
-// Sync all models with database
-const syncDatabase = async (force = false) => {
+// Sync all models with database. Accepts either a boolean (treated as `force`)
+// or an options object with { force, alter, logging } for finer control.
+const syncDatabase = async (options = {}) => {
+  const opts =
+    typeof options === 'boolean'
+      ? { force: options }
+      : options || {};
+  const {
+    force = false,
+    alter = false,
+    logging = false
+  } = opts;
+
   try {
     // Note: Sequelize's `alter: true` can emit complex ALTER statements for Postgres
     // that may include `USING` after COMMENT statements in some versions and edge-cases
     // (seen as "syntax error at or near \"USING\""). To avoid generating
-    // invalid SQL during automatic alters, run a safe sync without `alter` unless
-    // force is explicitly requested.
+    // invalid SQL during automatic alters, only attempt an alter when it is
+    // explicitly requested. Otherwise fall back to creating missing tables.
     if (force) {
-      await sequelize.sync({ force: true });
+      await sequelize.sync({ force: true, logging });
       console.log('✅ Database synchronized successfully. (Force mode - all tables recreated)');
+    } else if (alter) {
+      await sequelize.sync({ alter: true, logging });
+      console.log('✅ Database synchronized successfully. (Alter mode - attempting non-destructive changes)');
     } else {
       // For non-force runs, use plain sync() which creates missing tables but does
       // not attempt to alter existing columns/types. This avoids the Postgres enum
       // ALTER ordering bug while keeping non-destructive behaviour.
-      await sequelize.sync();
+      await sequelize.sync({ logging });
       console.log('✅ Database synchronized successfully. (Safe sync - create missing tables only)');
     }
   } catch (error) {

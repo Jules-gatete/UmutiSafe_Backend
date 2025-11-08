@@ -32,16 +32,35 @@ const Disposal = sequelize.define('Disposal', {
     allowNull: true,
     comment: 'e.g., Blister Pack, Bottle, Tube'
   },
+  medicineName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Normalized medicine name returned by the ML model'
+  },
+  inputGenericName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Original generic name interpreted by the model'
+  },
   predictedCategory: {
     type: DataTypes.STRING,
     allowNull: true
   },
+  predictedCategoryConfidence: {
+    type: DataTypes.DECIMAL(5, 4),
+    allowNull: true,
+    validate: {
+      min: 0,
+      max: 1
+    }
+  },
   riskLevel: {
     type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH'),
-    allowNull: false
+    allowNull: true,
+    defaultValue: null
   },
   confidence: {
-    type: DataTypes.DECIMAL(4, 2),
+    type: DataTypes.DECIMAL(5, 4),
     allowNull: true,
     validate: {
       min: 0,
@@ -62,6 +81,78 @@ const Disposal = sequelize.define('Disposal', {
   disposalGuidance: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  handlingMethod: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Primary recommended handling method from ML model'
+  },
+  disposalRemarks: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  categoryCode: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  categoryLabel: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  similarGenericName: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  similarityDistance: {
+    type: DataTypes.DECIMAL(6, 4),
+    allowNull: true
+  },
+  predictionInputType: {
+    type: DataTypes.ENUM('text', 'image', 'manual'),
+    allowNull: true,
+    defaultValue: null
+  },
+  predictionSource: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  modelVersion: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  analysis: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  disposalMethods: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
+  dosageForms: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
+  manufacturers: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
+  messages: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
+  errors: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
+  predictionDetails: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    comment: 'Structured predictions payload straight from the ML model'
+  },
+  metadata: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    comment: 'Additional data returned by the ML service (e.g., full raw response)'
   },
   imageUrl: {
     type: DataTypes.STRING,
@@ -90,6 +181,7 @@ const Disposal = sequelize.define('Disposal', {
     { fields: ['user_id'] },
     { fields: ['status'] },
     { fields: ['risk_level'] },
+    { fields: ['prediction_input_type'] },
     { fields: ['created_at'] }
   ]
 });
