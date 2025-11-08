@@ -27,140 +27,108 @@ const seedDatabase = async () => {
 
     transaction = await sequelize.transaction();
 
-    // Seed Users
-    console.log('👥 Seeding users...');
-    const users = await User.bulkCreate([
-      {
-        name: 'Jean Baptiste',
-        email: 'jean.baptiste@email.com',
-        password: 'password123',
-        role: 'user',
-        phone: '+250 788 123 456',
-        location: 'Kigali, Gasabo',
-        avatar: 'JB',
-        isApproved: true,
-        approvedAt: new Date()
-      },
-      {
-        name: 'Marie Claire',
-        email: 'marie.claire@email.com',
-        password: 'password123',
-        role: 'chw',
-        phone: '+250 788 234 567',
-        sector: 'Remera',
-        availability: 'available',
-        completedPickups: 45,
-        rating: 4.8,
-        coverageArea: 'Gasabo District - Remera Sector',
-        avatar: 'MC',
-        isApproved: true,
-        approvedAt: new Date()
-      },
-      {
-        name: 'Admin User',
-        email: 'admin@umutisafe.gov.rw',
-        password: 'admin123',
-        role: 'admin',
-        phone: '+250 788 345 678',
-        avatar: 'AU',
-        isApproved: true,
-        approvedAt: new Date()
-      },
-      {
-        name: 'Pierre Uwase',
-        email: 'pierre.uwase@email.com',
-        password: 'password123',
-        role: 'chw',
-        phone: '+250 788 456 789',
-        sector: 'Kimironko',
-        availability: 'busy',
-        completedPickups: 38,
-        rating: 4.6,
-        coverageArea: 'Gasabo District - Kimironko Sector',
-        avatar: 'PU',
-        isApproved: true,
-        approvedAt: new Date()
-      },
-      {
-        name: 'Grace Mukamana',
-        email: 'grace.mukamana@email.com',
-        password: 'password123',
-        role: 'chw',
-        phone: '+250 788 567 890',
-        sector: 'Gikondo',
-        availability: 'available',
-        completedPickups: 52,
-        rating: 4.9,
-        coverageArea: 'Kicukiro District - Gikondo Sector',
-        avatar: 'GM',
-        isApproved: true,
-        approvedAt: new Date()
-      }
-    ], { individualHooks: true, transaction }); // Enable hooks to hash passwords
-    console.log(`✅ Created ${users.length} users`);
-
-    // Seed Medicines
-    console.log('💊 Seeding medicines...');
-    const medicines = await Medicine.bulkCreate([
-      {
-        genericName: 'Paracetamol',
-        brandName: 'Panadol',
-        dosageForm: 'Tablet',
-        strength: '500mg',
-        category: 'Analgesic',
-        riskLevel: 'LOW',
-        fdaApproved: true,
-        disposalInstructions: 'Mix with coffee grounds or kitty litter, seal in plastic bag, and dispose in regular trash. Remove personal information from labels.'
-      },
-      {
-        genericName: 'Amoxicillin',
-        brandName: 'Amoxil',
-        dosageForm: 'Capsule',
-        strength: '250mg',
-        category: 'Antibiotic',
-        riskLevel: 'MEDIUM',
-        fdaApproved: true,
-        disposalInstructions: 'Return to pharmacy or request CHW pickup. Do not dispose in household trash or flush down toilet.'
-      },
-      {
-        genericName: 'Diazepam',
-        brandName: 'Valium',
-        dosageForm: 'Tablet',
-        strength: '5mg',
-        category: 'Controlled Substance',
-        riskLevel: 'HIGH',
-        fdaApproved: true,
-        disposalInstructions: 'MUST be returned to CHW or authorized collection site immediately. NEVER dispose in household trash.'
-      },
-      {
-        genericName: 'Ibuprofen',
-        brandName: 'Advil',
-        dosageForm: 'Tablet',
-        strength: '400mg',
-        category: 'NSAID',
-        riskLevel: 'LOW',
-        fdaApproved: true
-      },
-      {
-        genericName: 'Ciprofloxacin',
-        brandName: 'Cipro',
-        dosageForm: 'Tablet',
-        strength: '500mg',
-        category: 'Antibiotic',
-        riskLevel: 'MEDIUM',
-        fdaApproved: true
-      },
-      {
-        genericName: 'Morphine Sulfate',
-        brandName: 'MS Contin',
-        dosageForm: 'Tablet',
-        strength: '30mg',
-        category: 'Opioid',
-        riskLevel: 'HIGH',
-        fdaApproved: true
-      }
-    ], { transaction });
-    console.log(`✅ Created ${medicines.length} medicines`);
+    const seedSampleMedicines = process.env.SEED_SAMPLE_MEDICINES === 'true';
+    if (seedSampleMedicines) {
+      console.log('� Seeding medicines (sample data enabled)...');
+      const medicines = await Medicine.bulkCreate([
+        {
+          genericName: 'Paracetamol',
+          brandName: 'Panadol',
+          dosageForm: 'Tablet',
+          strength: '500mg',
+          category: 'Analgesic',
+          riskLevel: 'LOW',
+          fdaApproved: true,
+          disposalInstructions: 'Mix with coffee grounds or kitty litter, seal in plastic bag, and dispose in regular trash. Remove personal information from labels.'
+        },
+        {
+          genericName: 'Amoxicillin',
+          brandName: 'Amoxil',
+          dosageForm: 'Capsule',
+          strength: '250mg',
+          category: 'Antibiotic',
+          riskLevel: 'MEDIUM',
+          fdaApproved: true,
+          disposalInstructions: 'Return to pharmacy or request CHW pickup. Do not dispose in household trash or flush down toilet.'
+        },
+        {
+          genericName: 'Diazepam',
+          brandName: 'Valium',
+          dosageForm: 'Tablet',
+          strength: '5mg',
+          category: 'Controlled Substance',
+          riskLevel: 'HIGH',
+          fdaApproved: true,
+          disposalInstructions: 'MUST be returned to CHW or authorized collection site immediately. NEVER dispose in household trash.'
+        },
+        {
+          genericName: 'Ibuprofen',
+          brandName: 'Advil',
+          dosageForm: 'Tablet',
+          strength: '400mg',
+          category: 'NSAID',
+          riskLevel: 'LOW',
+          fdaApproved: true
+        },
+        {
+          genericName: 'Ciprofloxacin',
+          brandName: 'Cipro',
+          dosageForm: 'Tablet',
+          strength: '500mg',
+          category: 'Antibiotic',
+          riskLevel: 'MEDIUM',
+          fdaApproved: true
+        },
+        {
+          genericName: 'Morphine Sulfate',
+          brandName: 'MS Contin',
+          dosageForm: 'Tablet',
+          strength: '30mg',
+          category: 'Opioid',
+          riskLevel: 'HIGH',
+          fdaApproved: true
+        },
+        {
+          genericName: 'Metformin',
+          brandName: 'Glucophage',
+          dosageForm: 'Tablet',
+          strength: '500mg',
+          category: 'Antidiabetic',
+          riskLevel: 'MEDIUM',
+          fdaApproved: true
+        },
+        {
+          genericName: 'Hydrochlorothiazide',
+          brandName: 'Microzide',
+          dosageForm: 'Tablet',
+          strength: '25mg',
+          category: 'Diuretic',
+          riskLevel: 'MEDIUM',
+          fdaApproved: true
+        },
+        {
+          genericName: 'Atorvastatin',
+          brandName: 'Lipitor',
+          dosageForm: 'Tablet',
+          strength: '20mg',
+          category: 'Statin',
+          riskLevel: 'LOW',
+          fdaApproved: true
+        },
+        {
+          genericName: 'Azithromycin',
+          brandName: 'Zithromax',
+          dosageForm: 'Tablet',
+          strength: '250mg',
+          category: 'Antibiotic',
+          riskLevel: 'MEDIUM',
+          fdaApproved: true
+        }
+      ], { transaction });
+      console.log(`✅ Created ${medicines.length} medicines`);
+    } else {
+      console.log('ℹ️  Skipping sample medicine seed data (registry will be populated via admin CSV upload).');
+    }
 
     // Seed Disposals
     console.log('🗑️  Seeding disposals...');
