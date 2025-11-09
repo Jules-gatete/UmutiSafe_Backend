@@ -10,7 +10,26 @@ let sequelize;
 
 if (process.env.DATABASE_URL) {
   // Production/hosted database configuration
-  const useSsl = process.env.DB_SSL ? process.env.DB_SSL === 'true' : isProduction;
+  const dbUrl = process.env.DATABASE_URL;
+  let inferredHost = '';
+  let urlSslMode;
+
+  try {
+    const parsed = new URL(dbUrl);
+    inferredHost = parsed.hostname || '';
+    urlSslMode = parsed.searchParams.get('sslmode');
+  } catch (err) {
+    // Leave host empty if URL parsing fails; logging handled below.
+  }
+
+  const explicitSsl = process.env.DB_SSL ? process.env.DB_SSL === 'true' : undefined;
+  const hostRequiresSsl = inferredHost && !/^(localhost|127\.0\.0\.1)$/i.test(inferredHost);
+  const urlRequestsSsl = urlSslMode && urlSslMode !== 'disable';
+
+  const useSsl =
+    explicitSsl !== undefined
+      ? explicitSsl
+      : Boolean(isProduction || hostRequiresSsl || urlRequestsSsl);
 
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
@@ -35,7 +54,10 @@ if (process.env.DATABASE_URL) {
     }
   });
   
-  console.log('📡 Using DATABASE_URL for connection');
+  console.log(`📡 Using DATABASE_URL for connection${useSsl ? ' with SSL enabled' : ''}`);
+  if (!useSsl) {
+    console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
+  }
 } else {
   // Local development configuration
   sequelize = new Sequelize(
