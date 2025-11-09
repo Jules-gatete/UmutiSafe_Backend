@@ -55,6 +55,8 @@ if (process.env.DATABASE_URL) {
         sslOptions.ca = trimmed.includes('-----BEGIN CERTIFICATE-----')
           ? trimmed
           : Buffer.from(trimmed, 'base64').toString('utf8');
+        // A trusted CA is available, so strict verification can be enabled safely.
+        sslOptions.rejectUnauthorized = true;
       }
     } catch (err) {
       console.warn('⚠️ Failed to load DB SSL CA certificate from environment:', err.message);
@@ -81,7 +83,8 @@ if (process.env.DATABASE_URL) {
   
   console.log(`📡 Using DATABASE_URL for connection${useSsl ? ' with SSL enabled' : ''}`);
   if (useSsl && sslOptions && sslOptions.ca) {
-    console.log('🔐 Custom CA certificate loaded for database connection.');
+    const strict = sslOptions.rejectUnauthorized !== false;
+    console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''}.`);
   }
   if (!useSsl) {
     console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
