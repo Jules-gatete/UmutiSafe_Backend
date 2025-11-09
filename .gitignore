@@ -33,4 +33,6 @@ logs/
 *.md
 !README.md
 
+# certificate
+.prod-ca-2021.crt
 
