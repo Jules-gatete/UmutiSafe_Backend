@@ -35,7 +35,7 @@ if (process.env.DATABASE_URL) {
   if (useSsl) {
     sslOptions = {
       require: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: true
     };
 
     // Support providing a CA certificate either as plain text or base64 encoded string.
@@ -45,24 +45,36 @@ if (process.env.DATABASE_URL) {
     const caFile = process.env.DB_SSL_CA_FILE || process.env.DB_SSL_CERT_FILE;
 
     try {
+      const appendCerts = (pemString) => {
+        if (!pemString) return;
+        const parts = pemString
+          .split(/(?=-----BEGIN CERTIFICATE-----)/g)
+          .map((part) => part.trim())
+          .filter(Boolean);
+        if (!parts.length) return;
+        sslOptions.ca = Array.isArray(sslOptions.ca) ? sslOptions.ca : [];
+        for (const part of parts) {
+          sslOptions.ca.push(part.endsWith('\n') ? part : `${part}\n`);
+        }
+      };
+
       if (!caEnv && caFile) {
         const fs = require('fs');
         if (fs.existsSync(caFile)) {
-          sslOptions.ca = [fs.readFileSync(caFile, 'utf8')];
+          appendCerts(fs.readFileSync(caFile, 'utf8'));
         }
       } else if (caEnv) {
         const trimmed = caEnv.trim();
         const caPem = trimmed.includes('-----BEGIN CERTIFICATE-----')
           ? trimmed
           : Buffer.from(trimmed, 'base64').toString('utf8');
-        sslOptions.ca = Array.isArray(sslOptions.ca) ? sslOptions.ca : [];
-        sslOptions.ca.push(caPem);
-        // A trusted CA is available, so strict verification can be enabled safely.
-        sslOptions.rejectUnauthorized = true;
+        appendCerts(caPem);
       }
     } catch (err) {
       console.warn('⚠️ Failed to load DB SSL CA certificate from environment:', err.message);
     }
+  } else {
+    console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
   }
 
   sequelize = new Sequelize(process.env.DATABASE_URL, {
@@ -89,7 +101,8 @@ if (process.env.DATABASE_URL) {
   }
   if (useSsl && sslOptions && sslOptions.ca) {
     const strict = sslOptions.rejectUnauthorized !== false;
-    console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''}.`);
+    const certCount = Array.isArray(sslOptions.ca) ? sslOptions.ca.length : 1;
+    console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''} — ${certCount} cert(s).`);
   }
   if (!useSsl) {
     console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
