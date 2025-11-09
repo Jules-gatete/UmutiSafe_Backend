@@ -26,6 +26,20 @@ if (process.env.DATABASE_URL) {
   const hostRequiresSsl = inferredHost && !/^(localhost|127\.0\.0\.1)$/i.test(inferredHost);
   const urlRequestsSsl = urlSslMode && urlSslMode !== 'disable';
 
+  let sanitizedDbUrl = dbUrl;
+  if (urlSslMode) {
+    try {
+      const sanitized = new URL(dbUrl);
+      sanitized.searchParams.delete('sslmode');
+      sanitizedDbUrl = sanitized.toString();
+      if (sanitizedDbUrl !== dbUrl) {
+        console.log(`ℹ️ Removed sslmode=${urlSslMode} from DATABASE_URL and will enforce SSL via dialect options.`);
+      }
+    } catch (err) {
+      console.warn('⚠️ Unable to sanitize sslmode from DATABASE_URL:', err.message);
+    }
+  }
+
   const useSsl =
     explicitSsl !== undefined
       ? explicitSsl
@@ -60,8 +74,12 @@ if (process.env.DATABASE_URL) {
 
       if (!caEnv && caFile) {
         const fs = require('fs');
-        if (fs.existsSync(caFile)) {
-          appendCerts(fs.readFileSync(caFile, 'utf8'));
+        const path = require('path');
+        const resolved = path.resolve(caFile);
+        if (fs.existsSync(resolved)) {
+          appendCerts(fs.readFileSync(resolved, 'utf8'));
+        } else {
+          console.warn(`⚠️ DB_SSL_CA_FILE path not found: ${resolved}`);
         }
       } else if (caEnv) {
         const trimmed = caEnv.trim();
@@ -69,6 +87,8 @@ if (process.env.DATABASE_URL) {
           ? trimmed
           : Buffer.from(trimmed, 'base64').toString('utf8');
         appendCerts(caPem);
+      } else {
+        console.warn('⚠️ SSL enabled but no CA certificate provided. Connection will rely on system trust store.');
       }
     } catch (err) {
       console.warn('⚠️ Failed to load DB SSL CA certificate from environment:', err.message);
@@ -77,11 +97,23 @@ if (process.env.DATABASE_URL) {
     console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
   }
 
-  sequelize = new Sequelize(process.env.DATABASE_URL, {
+  let dialectOptions = {};
+  if (useSsl && sslOptions) {
+    const tlsOptions = { ...sslOptions };
+    try {
+      const { hostname } = new URL(dbUrl);
+      tlsOptions.servername = hostname;
+    } catch (err) {
+      console.warn('[database] Failed to derive servername from DATABASE_URL:', err.message);
+    }
+    dialectOptions = { ssl: tlsOptions };
+  }
+
+  sequelize = new Sequelize(sanitizedDbUrl, {
     dialect: 'postgres',
     protocol: 'postgres',
     logging: !isProduction ? console.log : false,
-    dialectOptions: useSsl ? { ssl: sslOptions } : {},
+    dialectOptions,
     pool: {
       max: 5,
       min: 0,
@@ -103,6 +135,8 @@ if (process.env.DATABASE_URL) {
     const strict = sslOptions.rejectUnauthorized !== false;
     const certCount = Array.isArray(sslOptions.ca) ? sslOptions.ca.length : 1;
     console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''} — ${certCount} cert(s).`);
+  } else if (useSsl) {
+    console.warn('⚠️ No custom CA provided; relying on default trust store. If errors persist, ensure DB_SSL_CA contains the Supabase chain.');
   }
   if (!useSsl) {
     console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
