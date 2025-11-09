@@ -48,13 +48,15 @@ if (process.env.DATABASE_URL) {
       if (!caEnv && caFile) {
         const fs = require('fs');
         if (fs.existsSync(caFile)) {
-          sslOptions.ca = fs.readFileSync(caFile, 'utf8');
+          sslOptions.ca = [fs.readFileSync(caFile, 'utf8')];
         }
       } else if (caEnv) {
         const trimmed = caEnv.trim();
-        sslOptions.ca = trimmed.includes('-----BEGIN CERTIFICATE-----')
+        const caPem = trimmed.includes('-----BEGIN CERTIFICATE-----')
           ? trimmed
           : Buffer.from(trimmed, 'base64').toString('utf8');
+        sslOptions.ca = Array.isArray(sslOptions.ca) ? sslOptions.ca : [];
+        sslOptions.ca.push(caPem);
         // A trusted CA is available, so strict verification can be enabled safely.
         sslOptions.rejectUnauthorized = true;
       }
@@ -82,6 +84,9 @@ if (process.env.DATABASE_URL) {
   });
   
   console.log(`📡 Using DATABASE_URL for connection${useSsl ? ' with SSL enabled' : ''}`);
+  if (inferredHost) {
+    console.log(`🌐 Database host: ${inferredHost}`);
+  }
   if (useSsl && sslOptions && sslOptions.ca) {
     const strict = sslOptions.rejectUnauthorized !== false;
     console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''}.`);
