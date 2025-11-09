@@ -31,16 +31,41 @@ if (process.env.DATABASE_URL) {
       ? explicitSsl
       : Boolean(isProduction || hostRequiresSsl || urlRequestsSsl);
 
+  let sslOptions;
+  if (useSsl) {
+    sslOptions = {
+      require: true,
+      rejectUnauthorized: false
+    };
+
+    // Support providing a CA certificate either as plain text or base64 encoded string.
+    // This allows platforms like Render to inject the Supabase CA via env vars without
+    // writing files to disk.
+    const caEnv = process.env.DB_SSL_CA || process.env.DB_SSL_CERT;
+    const caFile = process.env.DB_SSL_CA_FILE || process.env.DB_SSL_CERT_FILE;
+
+    try {
+      if (!caEnv && caFile) {
+        const fs = require('fs');
+        if (fs.existsSync(caFile)) {
+          sslOptions.ca = fs.readFileSync(caFile, 'utf8');
+        }
+      } else if (caEnv) {
+        const trimmed = caEnv.trim();
+        sslOptions.ca = trimmed.includes('-----BEGIN CERTIFICATE-----')
+          ? trimmed
+          : Buffer.from(trimmed, 'base64').toString('utf8');
+      }
+    } catch (err) {
+      console.warn('⚠️ Failed to load DB SSL CA certificate from environment:', err.message);
+    }
+  }
+
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     protocol: 'postgres',
     logging: !isProduction ? console.log : false,
-    dialectOptions: useSsl ? { 
-      ssl: { 
-        require: true, 
-        rejectUnauthorized: false 
-      } 
-    } : {},
+    dialectOptions: useSsl ? { ssl: sslOptions } : {},
     pool: {
       max: 5,
       min: 0,
@@ -55,6 +80,9 @@ if (process.env.DATABASE_URL) {
   });
   
   console.log(`📡 Using DATABASE_URL for connection${useSsl ? ' with SSL enabled' : ''}`);
+  if (useSsl && sslOptions && sslOptions.ca) {
+    console.log('🔐 Custom CA certificate loaded for database connection.');
+  }
   if (!useSsl) {
     console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
   }
