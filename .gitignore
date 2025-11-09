@@ -35,4 +35,5 @@ logs/
 
 # certificate
 .prod-ca-2021.crt
+prod-ca-chain.crt
 
