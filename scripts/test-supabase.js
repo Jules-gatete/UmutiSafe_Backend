@@ -16,6 +16,12 @@ try {
     connectionString = parsed.toString();
     console.log(`Removed sslmode=${originalMode} from connection string for custom TLS handling.`);
   }
+  if (parsed.searchParams.has('options')) {
+    console.log('Connection string options param:', parsed.searchParams.get('options'));
+  }
+  if (parsed.searchParams.has('pgbouncer')) {
+    console.log('Connection string pgbouncer param:', parsed.searchParams.get('pgbouncer'));
+  }
 } catch (err) {
   console.warn('Failed to sanitize DATABASE_URL:', err.message);
 }
