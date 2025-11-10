@@ -6,9 +6,26 @@ const createTransporter = () => {
   // For production, use real SMTP service (Gmail, SendGrid, etc.)
   
   if (process.env.NODE_ENV === 'production') {
+    const requiredEnv = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
+    const missing = requiredEnv.filter((key) => !process.env[key]);
+
+    if (missing.length) {
+      console.error(
+        `❌ Email transporter misconfigured. Missing environment variables: ${missing.join(', ')}. ` +
+          'Set the SMTP_* variables in your deployment to enable production emails.'
+      );
+      throw new Error('SMTP configuration missing');
+    }
+
+    const smtpPort = Number(process.env.SMTP_PORT);
+    if (Number.isNaN(smtpPort)) {
+      console.error(`❌ SMTP_PORT must be a number. Received: ${process.env.SMTP_PORT}`);
+      throw new Error('Invalid SMTP_PORT');
+    }
+
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
+      port: smtpPort,
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER,
@@ -112,7 +129,7 @@ Your Login Credentials:
 Email: ${user.email}
 Password: Use the password you created during registration
 
-Login at: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/login
+Login at: ${process.env.FRONTEND_URL || 'http://localhost:5173','https://umuti-safe-app.vercel.app/login'}/login
 
 What you can do now:
 - Scan or enter medicine information
