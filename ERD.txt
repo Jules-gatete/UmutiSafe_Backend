@@ -1,0 +1,135 @@
+ER Diagram
+===========
+
+```mermaid
+erDiagram
+	USER ||--o{ DISPOSAL : "submits"
+	USER ||--o{ PICKUP_REQUEST : "requests"
+	USER ||--o{ PICKUP_REQUEST : "assigned_as_chw"
+	PICKUP_REQUEST ||--o| DISPOSAL : "fulfills"
+	DISPOSAL ||--o{ MEDICINE_IMAGE : "has"
+
+	USER {
+		UUID id PK
+		STRING name
+		STRING email UNIQUE
+		STRING password
+		ENUM role
+		STRING phone
+		STRING location
+		STRING sector
+		ENUM availability
+		INTEGER completedPickups
+		DECIMAL rating
+		STRING coverageArea
+		BOOLEAN isActive
+		BOOLEAN isApproved
+		UUID approvedBy
+		DATE approvedAt
+		DATE lastLogin
+	}
+
+	DISPOSAL {
+		UUID id PK
+		UUID userId FK
+		UUID pickupRequestId FK
+		STRING genericName
+		STRING brandName
+		STRING dosageForm
+		STRING packagingType
+		STRING medicineName
+		STRING inputGenericName
+		STRING predictedCategory
+		DECIMAL predictedCategoryConfidence
+		ENUM riskLevel
+		DECIMAL confidence
+		ENUM status
+		STRING reason
+		TEXT disposalGuidance
+		STRING handlingMethod
+		TEXT disposalRemarks
+		STRING categoryCode
+		STRING categoryLabel
+		STRING similarGenericName
+		DECIMAL similarityDistance
+		ENUM predictionInputType
+		STRING predictionSource
+		STRING modelVersion
+		TEXT analysis
+		JSONB disposalMethods
+		JSONB dosageForms
+		JSONB manufacturers
+		JSONB messages
+		JSONB errors
+		JSONB predictionDetails
+		JSONB metadata
+		STRING imageUrl
+		DATE completedAt
+		TEXT notes
+	}
+
+	PICKUP_REQUEST {
+		UUID id PK
+		UUID userId FK
+		UUID chwId FK
+		STRING medicineName
+		TEXT disposalGuidance
+		STRING reason
+		STRING pickupLocation
+		DECIMAL latitude
+		DECIMAL longitude
+		DATE preferredTime
+		ENUM status
+		BOOLEAN consentGiven
+		TEXT notes
+		TEXT chwNotes
+		DATE scheduledTime
+		DATE completedAt
+	}
+
+	MEDICINE_IMAGE {
+		UUID id PK
+		UUID disposalId FK
+		STRING filename
+		STRING url
+		STRING mimetype
+		INTEGER size
+	}
+
+	REGISTERED_MEDICINE {
+		UUID id PK
+		STRING genericName
+		TEXT brandName
+		STRING registrationNumber
+		TEXT dosageForm
+		TEXT strength
+		TEXT packSize
+		TEXT packagingType
+		TEXT shelfLife
+		TEXT category
+		ENUM riskLevel
+		TEXT manufacturer
+		TEXT manufacturerAddress
+		STRING manufacturerCountry
+		TEXT marketingAuthorizationHolder
+		TEXT localTechnicalRepresentative
+		BOOLEAN fdaApproved
+		TEXT disposalInstructions
+		DATE registrationDate
+		DATE expiryDate
+		BOOLEAN isActive
+	}
+
+	EDUCATION_TIP {
+		UUID id PK
+		STRING title
+		STRING icon
+		TEXT summary
+		TEXT content
+		STRING category
+		BOOLEAN isActive
+		INTEGER displayOrder
+	}
+```
+
+

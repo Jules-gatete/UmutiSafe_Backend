@@ -10,33 +10,65 @@ let sequelize;
 
 if (process.env.DATABASE_URL) {
   // Production/hosted database configuration
-  const dbUrl = process.env.DATABASE_URL;
+  const rawDbUrl = process.env.DATABASE_URL;
+  const dbUrl = typeof rawDbUrl === 'string' ? rawDbUrl.trim() : rawDbUrl;
+  if (!dbUrl) {
+    console.warn('⚠️ DATABASE_URL provided but empty. Falling back to individual DB_* environment variables.');
+  }
   let inferredHost = '';
   let urlSslMode;
+  let sanitizedDbUrl = null;
+  let parsedUrl;
 
-  try {
-    const parsed = new URL(dbUrl);
-    inferredHost = parsed.hostname || '';
-    urlSslMode = parsed.searchParams.get('sslmode');
-  } catch (err) {
-    // Leave host empty if URL parsing fails; logging handled below.
+  if (dbUrl) {
+    try {
+      parsedUrl = new URL(dbUrl);
+      inferredHost = parsedUrl.hostname || '';
+      urlSslMode = parsedUrl.searchParams.get('sslmode');
+    } catch (err) {
+      console.error('❌ DATABASE_URL could not be parsed. Please verify it is a valid connection string. Falling back to individual DB_* variables.');
+      console.error(err.message);
+    }
   }
 
   const explicitSsl = process.env.DB_SSL ? process.env.DB_SSL === 'true' : undefined;
   const hostRequiresSsl = inferredHost && !/^(localhost|127\.0\.0\.1)$/i.test(inferredHost);
   const urlRequestsSsl = urlSslMode && urlSslMode !== 'disable';
 
-  let sanitizedDbUrl = dbUrl;
-  if (urlSslMode) {
-    try {
-      const sanitized = new URL(dbUrl);
-      sanitized.searchParams.delete('sslmode');
-      sanitizedDbUrl = sanitized.toString();
-      if (sanitizedDbUrl !== dbUrl) {
-        console.log(`ℹ️ Removed sslmode=${urlSslMode} from DATABASE_URL and will enforce SSL via dialect options.`);
+  if (parsedUrl) {
+    const parsedHost = parsedUrl.hostname || '';
+    const isSupabasePoolerHost = /\.pooler\.supabase\.com$/i.test(parsedHost);
+    const supabaseProjectRef =
+      process.env.SUPABASE_PROJECT_REF ||
+      process.env.SUPABASE_PROJECT_ID ||
+      process.env.SUPABASE_PROJECT;
+
+    if (isSupabasePoolerHost) {
+      if (supabaseProjectRef) {
+        const existingOptions = parsedUrl.searchParams.get('options') || '';
+        if (!/project=/i.test(existingOptions)) {
+          parsedUrl.searchParams.set('options', `project=${supabaseProjectRef}`);
+          console.log('ℹ️ Added Supabase project reference to DATABASE_URL options parameter.');
+        }
+      } else {
+        console.warn('⚠️ Supabase pooler URL detected but no SUPABASE_PROJECT_REF provided. This can trigger "Tenant or user not found" errors.');
       }
-    } catch (err) {
-      console.warn('⚠️ Unable to sanitize sslmode from DATABASE_URL:', err.message);
+    }
+
+    const parsedString = parsedUrl.toString();
+    sanitizedDbUrl = parsedString;
+
+    if (urlSslMode) {
+      try {
+        const sanitized = new URL(parsedString);
+        sanitized.searchParams.delete('sslmode');
+        sanitizedDbUrl = sanitized.toString();
+        if (sanitizedDbUrl !== parsedString) {
+          console.log(`ℹ️ Removed sslmode=${urlSslMode} from DATABASE_URL and will enforce SSL via dialect options.`);
+        }
+      } catch (err) {
+        console.warn('⚠️ Unable to sanitize sslmode from DATABASE_URL:', err.message);
+      }
     }
   }
 
@@ -100,48 +132,51 @@ if (process.env.DATABASE_URL) {
   let dialectOptions = {};
   if (useSsl && sslOptions) {
     const tlsOptions = { ...sslOptions };
-    try {
-      const { hostname } = new URL(dbUrl);
-      tlsOptions.servername = hostname;
-    } catch (err) {
-      console.warn('[database] Failed to derive servername from DATABASE_URL:', err.message);
+    if (parsedUrl?.hostname) {
+      tlsOptions.servername = parsedUrl.hostname;
     }
     dialectOptions = { ssl: tlsOptions };
   }
 
-  sequelize = new Sequelize(sanitizedDbUrl, {
-    dialect: 'postgres',
-    protocol: 'postgres',
-    logging: !isProduction ? console.log : false,
-    dialectOptions,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    },
-    define: {
-      timestamps: true,
-      underscored: true,
-      freezeTableName: true
+  if (sanitizedDbUrl) {
+    sequelize = new Sequelize(sanitizedDbUrl, {
+      dialect: 'postgres',
+      protocol: 'postgres',
+      logging: !isProduction ? console.log : false,
+      dialectOptions,
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000
+      },
+      define: {
+        timestamps: true,
+        underscored: true,
+        freezeTableName: true
+      }
+    });
+
+    console.log(`📡 Using DATABASE_URL for connection${useSsl ? ' with SSL enabled' : ''}`);
+    if (inferredHost) {
+      console.log(`🌐 Database host: ${inferredHost}`);
     }
-  });
-  
-  console.log(`📡 Using DATABASE_URL for connection${useSsl ? ' with SSL enabled' : ''}`);
-  if (inferredHost) {
-    console.log(`🌐 Database host: ${inferredHost}`);
+    if (useSsl && sslOptions && sslOptions.ca) {
+      const strict = sslOptions.rejectUnauthorized !== false;
+      const certCount = Array.isArray(sslOptions.ca) ? sslOptions.ca.length : 1;
+      console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''} — ${certCount} cert(s).`);
+    } else if (useSsl) {
+      console.warn('⚠️ No custom CA provided; relying on default trust store. If errors persist, ensure DB_SSL_CA contains the Supabase chain.');
+    }
+    if (!useSsl) {
+      console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
+    }
+  } else if (dbUrl) {
+    console.warn('⚠️ DATABASE_URL was present but invalid. Falling back to individual DB_* environment variables.');
   }
-  if (useSsl && sslOptions && sslOptions.ca) {
-    const strict = sslOptions.rejectUnauthorized !== false;
-    const certCount = Array.isArray(sslOptions.ca) ? sslOptions.ca.length : 1;
-    console.log(`🔐 Custom CA certificate loaded for database connection${strict ? ' (strict verification enabled)' : ''} — ${certCount} cert(s).`);
-  } else if (useSsl) {
-    console.warn('⚠️ No custom CA provided; relying on default trust store. If errors persist, ensure DB_SSL_CA contains the Supabase chain.');
-  }
-  if (!useSsl) {
-    console.warn('⚠️ SSL is disabled for DATABASE_URL connections. Set DB_SSL=true to enable certificate handling.');
-  }
-} else {
+}
+
+if (!sequelize) {
   // Local development configuration
   sequelize = new Sequelize(
     process.env.DB_NAME || 'umutisafe_db',
@@ -165,7 +200,7 @@ if (process.env.DATABASE_URL) {
       }
     }
   );
-  
+
   console.log('📡 Using local database configuration');
 }
 
