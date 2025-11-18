@@ -166,6 +166,9 @@ exports.login = async (req, res, next) => {
       });
     }
 
+    const hadLoggedBefore = Boolean(user.lastLogin);
+    const previousLastLogin = user.lastLogin ? user.lastLogin.toISOString() : null;
+
     // Update last login
     await user.update({ lastLogin: new Date() });
 
@@ -173,11 +176,15 @@ exports.login = async (req, res, next) => {
     const token = generateToken(user.id);
     console.log('✅ Login successful for:', user.email);
 
+    const userPayload = user.toJSON();
+    userPayload.hasLoggedBefore = hadLoggedBefore;
+    userPayload.previousLastLogin = previousLastLogin;
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
-        user: user.toJSON(),
+        user: userPayload,
         token
       }
     });

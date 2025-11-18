@@ -83,7 +83,7 @@ const Disposal = sequelize.define('Disposal', {
     allowNull: true
   },
   handlingMethod: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true,
     comment: 'Primary recommended handling method from ML model'
   },

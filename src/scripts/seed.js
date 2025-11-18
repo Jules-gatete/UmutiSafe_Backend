@@ -10,6 +10,10 @@ const alterSchema = !resetSchema && argv.has('--alter');
 
 const seedDatabase = async () => {
   let transaction;
+  let users = [];
+  let adminUser;
+  let householdUser;
+  let chwUsers = [];
   try {
     console.log('🌱 Starting database seeding...\n');
     console.log(`   • Schema sync: ${skipSync ? 'skipped (--skip-sync)' : resetSchema ? 'force (drop & recreate)' : alterSchema ? 'alter (non-destructive)' : 'safe (create missing tables)'}${logSql ? ' + SQL logging' : ''}`);
@@ -26,6 +30,246 @@ const seedDatabase = async () => {
     }
 
     transaction = await sequelize.transaction();
+
+    console.log('👥 Seeding user accounts...');
+
+    const now = new Date();
+
+    householdUser = await User.create({
+      name: 'Jean Baptiste Niyonzima',
+      email: 'jean.baptiste@email.com',
+      password: 'password123',
+      role: 'user',
+      phone: '+250781234567',
+      location: 'Remera, Gasabo District',
+      isApproved: true,
+      isActive: true
+    }, { transaction });
+
+    adminUser = await User.create({
+      name: 'UmutiSafe Administrator',
+      email: 'admin@umutisafe.gov.rw',
+      password: 'admin123',
+      role: 'admin',
+      phone: '+250780000000',
+      location: 'Kigali City',
+      isApproved: true,
+      isActive: true,
+      approvedAt: now
+    }, { transaction });
+
+    const kigaliDistricts = [
+      {
+        district: 'Gasabo',
+        sectors: [
+          'Remera',
+          'Bumbogo',
+          'Gatsata',
+          'Gikomero',
+          'Gisozi',
+          'Jabana',
+          'Jali',
+          'Kacyiru',
+          'Kimihurura',
+          'Kimironko',
+          'Kinyinya',
+          'Nduba',
+          'Ndera',
+          'Rusororo',
+          'Rutunga'
+        ]
+      },
+      {
+        district: 'Kicukiro',
+        sectors: [
+          'Gahanga',
+          'Gatenga',
+          'Gikondo',
+          'Kagarama',
+          'Kanombe',
+          'Kicukiro',
+          'Kigarama',
+          'Masaka',
+          'Niboye',
+          'Nyarugunga'
+        ]
+      },
+      {
+        district: 'Nyarugenge',
+        sectors: [
+          'Gitega',
+          'Kanyinya',
+          'Kigali',
+          'Kimisagara',
+          'Mageragere',
+          'Muhima',
+          'Nyakabanda',
+          'Nyamirambo',
+          'Nyarugenge',
+          'Rwezamenyo'
+        ]
+      }
+    ];
+
+    const chwNamePool = [
+      'Aline Uwase',
+      'Benitha Mukamana',
+      'Claudette Niyonsaba',
+      'Didier Nkurunziza',
+      'Emeraude Habineza',
+      'Faustin Uwayezu',
+      'Grace Uwamahoro',
+      'Herve Ndayishimiye',
+      'Immaculee Uwitonze',
+      'Jacques Mugabekazi',
+      'Keza Nirere',
+      'Lionel Rukundo',
+      'Malaika Uwimana',
+      'Nadia Ingabire',
+      'Obed Ishimwe',
+      'Pascal Twagiramungu',
+      'Queen Mutoni',
+      'Roland Habumugisha',
+      'Sandrine Isimbi',
+      'Thierry Nsengimana',
+      'Umwali Kamaraba',
+      'Valerie Umuhoza',
+      'Willy Gashugi',
+      'Xaverine Nyirahabimana',
+      'Yvette Umutoni',
+      'Zacharie Gakwerere',
+      'Alphonse Ndayambaje',
+      'Beatha Uwitonze',
+      'Claude Niyomugabo',
+      'Dativa Mukandayisenga',
+      'Eric Ngabonziza',
+      'Francine Ufitinema',
+      'Germain Ntirenganya',
+      'Honeline Umugwaneza',
+      'Isabelle Iyakaremye',
+      'Jeanette Ujeneza',
+      'Kenny Ndayisenga',
+      'Laurence Mukarurangwa',
+      'Moses Irumva',
+      'Nicole Uwamwezi',
+      'Olivier Rwigema',
+      'Patricia Nyiransabimana',
+      'Ruth Ngendo',
+      'Samson Kanyamibwa',
+      'Teta Uwase'
+    ];
+
+    let nameCounter = 0;
+
+    const nextName = () => {
+      const name = chwNamePool[nameCounter] || `CHW Agent ${nameCounter + 1}`;
+      nameCounter += 1;
+      return name;
+    };
+
+    const emailLocalParts = new Set([
+      'jean.baptiste',
+      'admin'
+    ]);
+
+    const normalizeToken = (value) => value
+      .normalize('NFKD')
+      .replace(/[^A-Za-z0-9]+/g, '')
+      .toLowerCase();
+
+    const makeEmailLocalPart = (fullName) => {
+      const tokens = fullName
+        .split(/\s+/)
+        .map((token) => normalizeToken(token))
+        .filter(Boolean);
+
+      if (tokens.length === 0) {
+        tokens.push('chw');
+      }
+
+      const primary = tokens[0];
+      const secondary = tokens[1] || tokens[tokens.length - 1] || tokens[0];
+      const base = `${primary}.${secondary}`.replace(/\.+/g, '.').replace(/^\.|\.$/g, '') || 'chw.agent';
+
+      let candidate = base;
+      let counter = 1;
+      while (emailLocalParts.has(candidate)) {
+        counter += 1;
+        candidate = `${base}${counter}`;
+      }
+
+      emailLocalParts.add(candidate);
+      return candidate;
+    };
+
+    const chwUsersData = [];
+
+    kigaliDistricts.forEach((entry) => {
+      entry.sectors.forEach((sector) => {
+        const globalIndex = chwUsersData.length;
+        const isRemera = entry.district === 'Gasabo' && sector === 'Remera';
+        const displayName = isRemera ? 'Marie Claire Uwase' : nextName();
+        let emailLocalPart;
+        if (isRemera) {
+          emailLocalPart = emailLocalParts.has('marie.claire')
+            ? makeEmailLocalPart(displayName)
+            : 'marie.claire';
+          emailLocalParts.add(emailLocalPart);
+        } else {
+          emailLocalPart = makeEmailLocalPart(displayName);
+        }
+        const email = `${emailLocalPart}@email.com`;
+        const phoneSuffix = (1000000 + globalIndex).toString().slice(-7);
+
+        const seededRating = (() => {
+          if (isRemera) return 4.8;
+          if (entry.district === 'Gasabo' && ['Gisozi', 'Kimironko', 'Kacyiru'].includes(sector)) return 4.6;
+          if (entry.district === 'Kicukiro' && ['Gikondo', 'Kanombe', 'Kicukiro'].includes(sector)) return 4.5;
+          if (entry.district === 'Nyarugenge' && ['Nyamirambo', 'Muhima', 'Kimisagara'].includes(sector)) return 4.7;
+          const base = 4.0 + ((globalIndex % 7) * 0.1);
+          return Math.min(4.9, Number(base.toFixed(1)));
+        })();
+
+        const seededPickups = (() => {
+          if (isRemera) return 42;
+          if (entry.district === 'Gasabo') return 15 + (globalIndex % 5) * 3;
+          if (entry.district === 'Kicukiro') return 12 + (globalIndex % 4) * 4;
+          return 10 + (globalIndex % 6) * 2;
+        })();
+
+        chwUsersData.push({
+          name: displayName,
+          email,
+          password: 'password123',
+          role: 'chw',
+          phone: `+25078${phoneSuffix}`,
+          sector,
+          coverageArea: `${sector} Sector, ${entry.district} District`,
+          location: `${entry.district} District`,
+          availability: 'available',
+          isActive: true,
+          isApproved: true,
+          approvedBy: adminUser.id,
+          approvedAt: now,
+          rating: seededRating,
+          completedPickups: seededPickups
+        });
+      });
+    });
+
+    chwUsers = await User.bulkCreate(chwUsersData, {
+      transaction,
+      returning: true,
+      individualHooks: true
+    });
+
+    users = [householdUser, ...chwUsers];
+
+    if (!users.length || chwUsers.length < 5) {
+      throw new Error('Failed to seed baseline user accounts');
+    }
+
+    console.log(`✅ Created ${users.length + 1} user accounts (${chwUsers.length} CHWs, 1 household user, 1 admin).`);
 
     const seedSampleMedicines = process.env.SEED_SAMPLE_MEDICINES === 'true';
     if (seedSampleMedicines) {
@@ -198,6 +442,8 @@ const seedDatabase = async () => {
       input_generic_name: 'Diazepam'
     };
 
+    const demoChws = chwUsers.slice(0, 3);
+
     const disposals = await Disposal.bulkCreate([
       {
         userId: users[0].id,
@@ -234,7 +480,14 @@ const seedDatabase = async () => {
           seeded: true,
           inputType: 'image',
           success: true,
-          modelVersion: 'seed-v2'
+          modelVersion: 'seed-v2',
+          assignedChw: demoChws[2]
+            ? {
+                id: demoChws[2].id,
+                name: demoChws[2].name,
+                email: demoChws[2].email
+              }
+            : null
         },
         completedAt: new Date('2024-09-18')
       },
@@ -270,7 +523,14 @@ const seedDatabase = async () => {
           seeded: true,
           inputType: 'text',
           success: true,
-          modelVersion: 'seed-v2'
+          modelVersion: 'seed-v2',
+          assignedChw: demoChws[1]
+            ? {
+                id: demoChws[1].id,
+                name: demoChws[1].name,
+                email: demoChws[1].email
+              }
+            : null
         }
       },
       {
@@ -305,7 +565,14 @@ const seedDatabase = async () => {
           seeded: true,
           inputType: 'text',
           success: true,
-          modelVersion: 'seed-v2'
+          modelVersion: 'seed-v2',
+          assignedChw: demoChws[0]
+            ? {
+                id: demoChws[0].id,
+                name: demoChws[0].name,
+                email: demoChws[0].email
+              }
+            : null
         }
       }
     ], { transaction });
@@ -316,7 +583,7 @@ const seedDatabase = async () => {
     const pickupRequests = await PickupRequest.bulkCreate([
       {
         userId: users[0].id,
-        chwId: users[1].id,
+        chwId: demoChws[0]?.id,
         medicineName: 'Diazepam (Valium)',
         disposalGuidance: 'MUST be returned to CHW or authorized collection site.',
         reason: 'no_longer_needed',
@@ -327,7 +594,7 @@ const seedDatabase = async () => {
       },
       {
         userId: users[0].id,
-        chwId: users[4].id,
+        chwId: demoChws[1]?.id,
         medicineName: 'Amoxicillin (Amoxil)',
         disposalGuidance: 'Return to pharmacy or CHW for proper disposal.',
         reason: 'completed_treatment',
@@ -335,12 +602,25 @@ const seedDatabase = async () => {
         preferredTime: new Date('2024-10-12T14:00:00'),
         status: 'pending',
         consentGiven: true
+      },
+      {
+        userId: users[0].id,
+        chwId: demoChws[2]?.id,
+        medicineName: 'Daparyllo (Tablets)',
+        disposalGuidance: 'Place tablets in sealed container prior to landfill delivery.',
+        reason: 'expired',
+        pickupLocation: 'Sector office, Rusororo',
+        preferredTime: new Date('2024-10-15T09:30:00'),
+        status: 'completed',
+        consentGiven: true
       }
     ], { transaction });
     console.log(`✅ Created ${pickupRequests.length} pickup requests`);
 
-    // Update disposal with pickup request
-    await disposals[2].update({ pickupRequestId: pickupRequests[0].id });
+    // Link seeded disposals to pickup requests to close the loop
+    await disposals[2].update({ pickupRequestId: pickupRequests[0].id }, { transaction });
+    await disposals[1].update({ pickupRequestId: pickupRequests[1].id }, { transaction });
+    await disposals[0].update({ pickupRequestId: pickupRequests[2].id }, { transaction });
 
     // Seed Education Tips
     console.log('📚 Seeding education tips...');
@@ -400,10 +680,16 @@ const seedDatabase = async () => {
   transaction = null;
 
     console.log('\n✅ Database seeding completed successfully!\n');
-    console.log('📝 Test Credentials:');
-    console.log('   User: jean.baptiste@email.com / password123');
-    console.log('   CHW: marie.claire@email.com / password123');
-    console.log('   Admin: admin@umutisafe.gov.rw / admin123\n');
+    console.log('📝 Test Accounts (passwords stored securely):');
+    console.log(`   User: ${householdUser.email}`);
+    const demoChw = chwUsers.find((chw) => chw.name === 'Marie Claire Uwase') || chwUsers[0];
+    if (demoChw) {
+      console.log(`   CHW: ${demoChw.email}`);
+    }
+    if (adminUser) {
+      console.log(`   Admin: ${adminUser.email}`);
+    }
+    console.log('   (Refer to internal documentation for default password policy)\n');
 
     process.exit(0);
   } catch (error) {
