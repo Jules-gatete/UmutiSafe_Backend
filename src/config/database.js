@@ -51,16 +51,7 @@ if (process.env.DATABASE_URL) {
           console.log('ℹ️ Added Supabase project reference to DATABASE_URL options parameter.');
         }
 
-        const rawUsername = parsedUrl.username || '';
-        if (rawUsername.includes('.')) {
-          const baseUser = rawUsername.split('.')[0];
-          if (baseUser) {
-            parsedUrl.username = baseUser;
-            console.log('ℹ️ Normalized Supabase pooler username for options-based routing.');
-          }
-        }
-
-        console.log(`🔧 Supabase pooler username after normalization: ${parsedUrl.username}`);
+        console.log(`🔧 Supabase pooler username: ${parsedUrl.username}`);
         console.log(`🔧 Supabase pooler query params: ${parsedUrl.searchParams.toString()}`);
       } else {
         console.warn('⚠️ Supabase pooler URL detected but no SUPABASE_PROJECT_REF provided. This can trigger "Tenant or user not found" errors.');
