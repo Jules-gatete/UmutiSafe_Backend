@@ -45,8 +45,11 @@ if (process.env.DATABASE_URL) {
 
     if (isSupabasePoolerHost) {
       if (supabaseProjectRef) {
+        const rawUsername = parsedUrl.username || '';
         const existingOptions = parsedUrl.searchParams.get('options') || '';
-        if (!/project=/i.test(existingOptions)) {
+        const shouldAddProjectOption = !rawUsername.includes('.') && !/project=/i.test(existingOptions);
+
+        if (shouldAddProjectOption) {
           parsedUrl.searchParams.set('options', `project=${supabaseProjectRef}`);
           console.log('ℹ️ Added Supabase project reference to DATABASE_URL options parameter.');
         }
